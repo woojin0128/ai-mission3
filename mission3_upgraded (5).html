@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI를 속여라 · 미션 3</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
+<style>
+:root{
+  --bg:#0b0b10; --panel:#15151d; --panel2:#1c1c26; --border:#2a2a36;
+  --text:#eef0f5; --muted:#8b8fa3; --pink:#ff4f9c; --pink-soft:rgba(255,79,156,0.14);
+  --good:#3ddc84; --bad:#ff5c5c; --warn:#ffd166;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){ --bg:#f5f5f8; --panel:#ffffff; --panel2:#f0f0f5; --border:#e2e2ea; --text:#1a1a22; --muted:#6b6b7a; }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;}
+.wrap{max-width:980px;margin:0 auto;padding:18px 16px 40px;}
+header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:22px;}
+.logo{font-size:19px;font-weight:800;display:flex;align-items:center;gap:8px;}
+.logo .badge{background:var(--panel2);color:var(--pink);font-size:12px;font-weight:700;padding:5px 10px;border-radius:20px;border:1px solid var(--border);}
+.steps{display:flex;gap:6px;flex-wrap:wrap;}
+.step-pill{font-size:12px;font-weight:700;padding:6px 12px;border-radius:20px;background:var(--panel2);color:var(--muted);border:1px solid var(--border);}
+.step-pill.active{background:var(--pink);color:#1a0410;border-color:var(--pink);}
+.step-pill.done{color:var(--text);}
+section.step{display:none;}
+section.step.active{display:block;}
+
+/* --- idle --- */
+.hero{text-align:center;padding:60px 10px;}
+.hero h2{font-size:24px;margin-bottom:10px;}
+.hero p{color:var(--muted);margin-bottom:26px;font-size:14px;}
+.primary-btn{background:var(--pink);color:#1a0410;border:none;border-radius:12px;padding:14px 26px;font-size:15px;font-weight:800;cursor:pointer;}
+.primary-btn:disabled{opacity:.5;cursor:not-allowed;}
+.secondary-btn{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:12px 20px;font-size:14px;font-weight:700;cursor:pointer;}
+
+/* --- select --- */
+.tagline{color:var(--pink);font-weight:700;font-size:13px;margin-bottom:6px;}
+.title{font-size:24px;font-weight:800;margin-bottom:20px;}
+.cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px;}
+.mcard{flex:1 1 260px;min-width:230px;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px;position:relative;cursor:pointer;transition:border-color .15s,transform .1s;}
+.mcard:hover{border-color:var(--pink);}
+.mcard:focus-visible{outline:2px solid var(--pink);outline-offset:2px;}
+.mcard:active{transform:scale(0.98);}
+.mcard.sel{border-color:var(--pink);box-shadow:0 0 0 1px var(--pink);}
+.mcard .pick-badge{position:absolute;top:14px;right:14px;font-size:11px;font-weight:700;color:var(--muted);}
+.primary-btn:disabled{opacity:.4;cursor:not-allowed;}
+.mcard .tag{display:none;}
+.mcard.sel .tag{display:inline-block;background:var(--pink-soft);color:var(--pink);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;margin-bottom:10px;}
+.mcard h3{font-size:19px;margin:0 0 8px;}
+.mcard p{color:var(--muted);font-size:13px;margin:0 0 14px;line-height:1.5;}
+.mcard .cond{background:var(--panel2);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--muted);}
+.select-actions{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px;}
+.timer-note{color:var(--muted);font-size:13px;}
+.privacy-note{color:var(--muted);font-size:12px;border-top:1px solid var(--border);padding-top:14px;}
+
+/* --- challenge --- */
+.challenge-title{font-size:15px;color:var(--muted);margin-bottom:2px;}
+.challenge-mission{font-size:24px;font-weight:800;margin-bottom:18px;}
+.challenge-grid{display:flex;gap:18px;flex-wrap:wrap;}
+.facebox{flex:1 1 340px;min-width:280px;background:#000;border-radius:16px;border:1px solid var(--border);position:relative;aspect-ratio:4/3;overflow:hidden;}
+.facebox svg{width:100%;height:100%;}
+.corner{position:absolute;width:28px;height:28px;border-color:var(--pink);}
+.corner.tl{top:14px;left:14px;border-top:3px solid var(--pink);border-left:3px solid var(--pink);border-radius:4px 0 0 0;}
+.corner.tr{top:14px;right:14px;border-top:3px solid var(--pink);border-right:3px solid var(--pink);border-radius:0 4px 0 0;}
+.corner.bl{bottom:14px;left:14px;border-bottom:3px solid var(--pink);border-left:3px solid var(--pink);border-radius:0 0 0 4px;}
+.corner.br{bottom:14px;right:14px;border-bottom:3px solid var(--pink);border-right:3px solid var(--pink);border-radius:0 0 4px 0;}
+.track-status{position:absolute;top:14px;left:50px;font-size:11px;color:var(--good);display:flex;align-items:center;gap:6px;}
+.track-dot{width:6px;height:6px;border-radius:50%;background:var(--good);animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.mouthzoom{position:absolute;bottom:14px;right:50px;background:rgba(0,0,0,0.6);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:10px;color:var(--muted);text-align:center;min-width:92px;}
+.mouthzoom-bar{width:100%;height:10px;border-radius:5px;background:#2a2a36;overflow:hidden;margin-bottom:5px;}
+.mouthzoom-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,#3ddc84,#ffd166,#ff5c5c);width:0%;transition:width .08s linear;}
+.side{flex:1 1 300px;min-width:260px;}
+.ring-wrap{display:flex;align-items:center;gap:16px;margin-bottom:16px;}
+.ring{position:relative;width:100px;height:100px;flex:0 0 auto;}
+.ring svg{transform:rotate(-90deg);}
+.ring .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ring .num b{font-size:26px;line-height:1;}
+.ring .num span{font-size:10px;color:var(--muted);}
+.hold-label{font-size:13px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;}
+.hold-track{height:10px;border-radius:6px;background:var(--panel2);overflow:hidden;}
+.hold-fill{height:100%;background:linear-gradient(90deg,var(--pink),#ff8fc4);width:0%;transition:width .1s linear;}
+.metric-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-top:16px;}
+.metric-box h4{margin:0 0 10px;font-size:13px;color:var(--muted);font-weight:700;}
+.metric{margin-bottom:12px;}
+.metric:last-child{margin-bottom:0;}
+.metric-top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;}
+.metric-top .name{color:var(--text);}
+.metric-top .val{font-weight:800;}
+.metric-track{height:7px;border-radius:5px;background:var(--panel2);overflow:hidden;margin-bottom:3px;}
+.metric-fill{height:100%;border-radius:5px;}
+.metric-hint{font-size:10.5px;color:var(--muted);}
+.pass-badge{font-size:11px;font-weight:800;padding:2px 8px;border-radius:20px;}
+.pass-badge.ok{background:rgba(61,220,132,0.15);color:var(--good);}
+.pass-badge.bad{background:rgba(255,92,92,0.15);color:var(--bad);}
+.feedback-box{margin-top:14px;border:1px solid var(--bad);background:rgba(255,92,92,0.08);color:var(--text);border-radius:12px;padding:12px 14px;font-size:13px;}
+.feedback-box.ok{border-color:var(--good);background:rgba(61,220,132,0.08);}
+
+/* --- result --- */
+.result-title{font-size:30px;font-weight:900;margin-bottom:8px;}
+.result-title.ok{color:var(--good);}
+.result-title.bad{color:var(--pink);}
+.result-desc{color:var(--muted);font-size:14px;margin-bottom:22px;line-height:1.6;}
+.result-desc b{color:var(--text);}
+.result-grid{display:flex;gap:18px;flex-wrap:wrap;}
+.result-left{flex:1 1 340px;min-width:280px;}
+table.result-table{width:100%;border-collapse:collapse;font-size:13px;}
+table.result-table th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;padding:8px 6px;border-bottom:1px solid var(--border);}
+table.result-table td{padding:10px 6px;border-bottom:1px solid var(--border);}
+table.result-table td b{font-weight:800;}
+.result-right{flex:1 1 300px;min-width:260px;}
+.tip-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;}
+.tip-card h4{margin:0 0 8px;font-size:13px;color:var(--pink);}
+.tip-card p{margin:0;font-size:13px;color:var(--muted);line-height:1.6;}
+.result-actions{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;}
+.auto-note{color:var(--muted);font-size:12px;margin-top:16px;}
+</style>
+</head>
+<body>
+<video id="video" playsinline autoplay muted style="display:none;"></video>
+<div class="wrap">
+  <header>
+    <div class="logo">AI를 속여라 <span class="badge">미션 3 · 안면 모순</span></div>
+    <div class="steps">
+      <span class="step-pill" id="pill0">1 대기</span>
+      <span class="step-pill" id="pill1">2 미션 확인</span>
+      <span class="step-pill" id="pill2">3 도전</span>
+      <span class="step-pill" id="pill3">4 결과</span>
+    </div>
+  </header>
+
+  <section class="step active" id="step-idle">
+    <div class="hero">
+      <h2>얼굴로 모순을 만들어 AI를 헷갈리게 하라</h2>
+      <p>카메라로 표정을 분석해, 원하는 미션을 직접 골라 도전합니다.<br>영상과 사진은 저장하지 않고, 화면에서 분석 후 바로 버립니다.</p>
+      <button class="primary-btn" id="camBtn">카메라 시작</button>
+      <p id="camError" style="color:var(--bad);font-size:13px;margin-top:14px;display:none;"></p>
+    </div>
+  </section>
+
+  <section class="step" id="step-select">
+    <div class="tagline">얼굴로 모순을 만들어 AI를 헷갈리게 하라</div>
+    <div class="title">도전할 미션을 선택하세요</div>
+    <div class="cards" id="cardsWrap"></div>
+    <div class="select-actions">
+      <button class="primary-btn" id="readyBtn" disabled>미션을 먼저 선택하세요</button>
+      <span class="timer-note">제한 시간 25초</span>
+    </div>
+    <div class="privacy-note">카메라 영상과 사진은 저장하지 않습니다. 화면에서 분석만 하고 바로 지웁니다.</div>
+  </section>
+
+  <section class="step" id="step-challenge">
+    <div class="challenge-title">미션</div>
+    <div class="challenge-mission" id="challengeMissionTitle">-</div>
+    <div class="challenge-grid">
+      <div class="facebox">
+        <svg id="faceSvg" viewBox="0 0 300 260">
+          <defs>
+            <linearGradient id="lipGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ff7ab8"/>
+              <stop offset="100%" stop-color="#e63a86"/>
+            </linearGradient>
+            <radialGradient id="cavityGrad" cx="50%" cy="15%" r="90%">
+              <stop offset="0%" stop-color="#5c1230"/>
+              <stop offset="100%" stop-color="#1c0510"/>
+            </radialGradient>
+          </defs>
+          <ellipse cx="150" cy="130" rx="95" ry="115" fill="none" stroke="#3a3a48" stroke-width="2"/>
+          <path id="browL" d="M90,95 Q110,82 130,95" fill="none" stroke="#c8c8d4" stroke-width="3" stroke-linecap="round"/>
+          <path id="browR" d="M170,95 Q190,82 210,95" fill="none" stroke="#c8c8d4" stroke-width="3" stroke-linecap="round"/>
+          <ellipse id="eyeL" cx="110" cy="118" rx="16" ry="9" fill="none" stroke="#c8c8d4" stroke-width="2.5"/>
+          <ellipse id="eyeR" cx="190" cy="118" rx="16" ry="9" fill="none" stroke="#c8c8d4" stroke-width="2.5"/>
+          <circle cx="110" cy="118" r="3" fill="#c8c8d4"/>
+          <circle cx="190" cy="118" r="3" fill="#c8c8d4"/>
+          <line x1="150" y1="130" x2="145" y2="165" stroke="#3a3a48" stroke-width="2"/>
+          <path id="mouth" d="M115,195 Q150,195 185,195" fill="none" stroke="url(#lipGrad)" stroke-width="4" stroke-linecap="round"/>
+          <path id="tongue" d="M0,0" fill="#c9436b" opacity="0"/>
+          <g id="teethGroup" opacity="0">
+            <rect id="teeth0" x="0" y="0" width="0" height="0" rx="1.1" fill="#f6f6fa"/>
+            <rect id="teeth1" x="0" y="0" width="0" height="0" rx="1.1" fill="#f6f6fa"/>
+            <rect id="teeth2" x="0" y="0" width="0" height="0" rx="1.1" fill="#f6f6fa"/>
+            <rect id="teeth3" x="0" y="0" width="0" height="0" rx="1.1" fill="#f6f6fa"/>
+            <rect id="teeth4" x="0" y="0" width="0" height="0" rx="1.1" fill="#f6f6fa"/>
+            <rect id="teeth5" x="0" y="0" width="0" height="0" rx="1.1" fill="#f6f6fa"/>
+          </g>
+          <path id="mouthOutline" d="M115,195 Q150,195 185,195" fill="none" stroke="url(#lipGrad)" stroke-width="3.5" stroke-linecap="round"/>
+          <path id="lipShine" d="M115,195 Q150,195 185,195" fill="none" stroke="#ffd6ea" stroke-width="1" stroke-linecap="round" opacity="0.3"/>
+          <circle id="dimpleL" cx="115" cy="195" r="2" fill="#e63a86" opacity="0"/>
+          <circle id="dimpleR" cx="185" cy="195" r="2" fill="#e63a86" opacity="0"/>
+          <circle cx="72" cy="150" r="3.5" fill="#ff4f9c"/>
+          <circle cx="228" cy="150" r="3.5" fill="#ff4f9c"/>
+          <circle cx="115" cy="195" r="3" fill="#ff4f9c"/>
+          <circle cx="185" cy="195" r="3" fill="#ff4f9c"/>
+          <circle cx="150" cy="55" r="3" fill="#4b4b5a"/>
+        </svg>
+        <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+        <div class="track-status" id="trackStatus"><span class="track-dot"></span><span>얼굴 점 478개 추적 중</span></div>
+        <div class="mouthzoom" id="mouthZoomWrap" style="display:none;">
+          <div class="mouthzoom-bar"><div class="mouthzoom-fill" id="mouthZoomFill"></div></div>
+          <span id="mouthZoomLabel">치아 밝기 감지 0%</span>
+        </div>
+      </div>
+      <div class="side">
+        <div class="ring-wrap">
+          <div class="ring">
+            <svg width="100" height="100" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="44" fill="none" stroke="var(--panel2)" stroke-width="8"/>
+              <circle id="ringProgress" cx="50" cy="50" r="44" fill="none" stroke="var(--pink)" stroke-width="8" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="0"/>
+            </svg>
+            <div class="num"><b id="timeLeftNum">25</b><span>초 남음</span></div>
+          </div>
+          <div style="flex:1;">
+            <div class="hold-label"><span>조건 유지</span><span id="holdLabel">0.0 / 3.0s</span></div>
+            <div class="hold-track"><div class="hold-fill" id="holdFill"></div></div>
+          </div>
+        </div>
+        <div class="metric-box">
+          <h4 id="metricBoxTitle">판정 수치</h4>
+          <div id="metricsList"></div>
+        </div>
+        <div class="feedback-box" id="feedbackBox" aria-live="polite">얼굴을 화면 중앙에 맞춰주세요</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="step-result">
+    <div class="result-title" id="resultTitle">-</div>
+    <div class="result-desc" id="resultDesc"></div>
+    <div class="result-grid">
+      <div class="result-left">
+        <table class="result-table">
+          <thead><tr><th>부위</th><th>판정 시점 값</th><th>기준</th><th>결과</th></tr></thead>
+          <tbody id="resultRows"></tbody>
+        </table>
+      </div>
+      <div class="result-right">
+        <div class="tip-card"><h4>다음엔 이렇게 해보세요</h4><p id="tipText"></p></div>
+        <div class="tip-card"><h4>AI는 이렇게 판단해요</h4><p id="explainText"></p></div>
+        <div class="result-actions">
+          <button class="primary-btn" id="retryBtn">다시 도전</button>
+          <button class="secondary-btn" id="restartBtn">처음으로</button>
+        </div>
+        <div class="auto-note" id="autoNote">10초 후 자동으로 처음 화면으로 돌아갑니다</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const HOLD_SECONDS = 3.0, TIME_LIMIT = 25.0, READY_COUNTDOWN = 3, AUTO_RETURN = 10;
+const SMOOTH_WINDOW = 5;
+const EMA_ALPHA = 0.55; // blended with the median filter below for low-lag, low-noise tracking
+const PASS_STREAK_NEEDED = 2;
+function trimmedMean(arr){
+  if(arr.length===0) return 0;
+  const s=[...arr].sort((a,b)=>a-b);
+  const cut=Math.floor(s.length*0.2);
+  const core = s.slice(cut, s.length-cut || s.length);
+  const use = core.length ? core : s;
+  return use.reduce((a,b)=>a+b,0)/use.length;
+}
+const LEFT_EYE=[33,160,158,133,153,144], RIGHT_EYE=[362,385,387,263,373,380];
+const EYE_OUTER_L=33, EYE_OUTER_R=263; // used to measure head roll (tilt) so metrics stay accurate off-axis
+const MOUTH_L=61, MOUTH_R=291, MOUTH_TOP=13, MOUTH_BOT=14, EYE_L_LOW=145, EYE_R_LOW=374;
+const MOUTH_MID_L_TOP=82, MOUTH_MID_L_BOT=87, MOUTH_MID_R_TOP=312, MOUTH_MID_R_BOT=317; // secondary vertical pairs for a sturdier mouth-open reading
+const MOUTH_RING=[78,191,80,81,82,13,312,311,310,415,308,324,318,402,317,14,87,178,88,95];
+const FOREHEAD=10;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function pt(lm,i,w,h){return {x:lm[i].x*w,y:lm[i].y*h};}
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+function median(arr){const s=[...arr].sort((a,b)=>a-b);const m=Math.floor(s.length/2);return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+function rotatePoint(p, ang, ox, oy){
+  const dx=p.x-ox, dy=p.y-oy, cs=Math.cos(ang), sn=Math.sin(ang);
+  return { x: ox+dx*cs-dy*sn, y: oy+dx*sn+dy*cs };
+}
+// builds a point-getter that corrects for head tilt (roll) around the eye-line midpoint,
+// so a tilted head doesn't skew EAR/MAR/width readings — this is the main "감지 정확도" upgrade
+function makeRotatedGetter(lm,w,h){
+  const eL=pt(lm,EYE_OUTER_L,w,h), eR=pt(lm,EYE_OUTER_R,w,h);
+  const ang=Math.atan2(eR.y-eL.y, eR.x-eL.x);
+  const ox=(eL.x+eR.x)/2, oy=(eL.y+eR.y)/2;
+  return { get:(i)=>rotatePoint(pt(lm,i,w,h), -ang, ox, oy), rollDeg: ang*180/Math.PI };
+}
+
+function computeEAR(idx,getPt){const p=idx.map(getPt);const v=dist(p[1],p[5])+dist(p[2],p[4]);const hz=2*dist(p[0],p[3]);return hz?v/hz:0;}
+function computeMAR(getPt){
+  // average three vertical mouth gaps (center + both mid-offsets) instead of one, so a slightly
+  // asymmetric mouth opening (very common) doesn't undercount how open the mouth really is
+  const l=getPt(MOUTH_L), r=getPt(MOUTH_R), hz=dist(l,r);
+  if(!hz) return 0;
+  const gapC=dist(getPt(MOUTH_TOP),getPt(MOUTH_BOT));
+  const gapL=dist(getPt(MOUTH_MID_L_TOP),getPt(MOUTH_MID_L_BOT));
+  const gapR=dist(getPt(MOUTH_MID_R_TOP),getPt(MOUTH_MID_R_BOT));
+  return ((gapC*1.4+gapL+gapR)/3.4)/hz;
+}
+function computeMouthWidthNorm(getPt,fw){const l=getPt(MOUTH_L),r=getPt(MOUTH_R);return fw?dist(l,r)/fw:0;}
+function computeCheekDist(getPt,fw){
+  const a=dist(getPt(EYE_L_LOW),getPt(MOUTH_L));
+  const b=dist(getPt(EYE_R_LOW),getPt(MOUTH_R));
+  return fw?((a+b)/2)/fw:0;
+}
+const offCanvas=document.createElement('canvas');
+function sampleForeheadBrightness(video,lm,w,h){
+  // samples the forehead skin patch each frame so teeth-whiteness detection adapts to the
+  // room's actual lighting and the person's own skin tone instead of a fixed brightness cutoff
+  const p=pt(lm,FOREHEAD,w,h), size=14;
+  const x=Math.max(0,Math.floor(p.x-size/2)), y=Math.max(0,Math.floor(p.y-size/2));
+  const sw=Math.min(w-x,size), sh=Math.min(h-y,size);
+  if(sw<3||sh<3) return 0.6;
+  if(offCanvas.width!==sw) offCanvas.width=sw;
+  if(offCanvas.height!==sh) offCanvas.height=sh;
+  const octx=offCanvas.getContext('2d',{willReadFrequently:true});
+  try{ octx.drawImage(video,x,y,sw,sh,0,0,sw,sh); }catch(e){ return 0.6; }
+  let data;
+  try{ data=octx.getImageData(0,0,sw,sh).data; }catch(e){ return 0.6; }
+  let sum=0,n=0;
+  for(let i=0;i<data.length;i+=4){ if(data[i+3]<10) continue; sum+=Math.max(data[i],data[i+1],data[i+2])/255; n++; }
+  return n ? sum/n : 0.6;
+}
+function teethWhiteRatio(video,lm,w,h,skinV){
+  const pts=MOUTH_RING.map(i=>pt(lm,i,w,h));
+  const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+  const minX=Math.max(0,Math.floor(Math.min(...xs))), minY=Math.max(0,Math.floor(Math.min(...ys)));
+  const maxX=Math.min(w,Math.ceil(Math.max(...xs))), maxY=Math.min(h,Math.ceil(Math.max(...ys)));
+  const rw=maxX-minX, rh=maxY-minY;
+  if(rw<3||rh<3) return 0;
+  if(offCanvas.width!==rw) offCanvas.width=rw;
+  if(offCanvas.height!==rh) offCanvas.height=rh;
+  const octx=offCanvas.getContext('2d',{willReadFrequently:true});
+  octx.clearRect(0,0,rw,rh);
+  octx.save(); octx.beginPath();
+  pts.forEach((p,i)=>{const px=p.x-minX,py=p.y-minY; if(i===0) octx.moveTo(px,py); else octx.lineTo(px,py);});
+  octx.closePath(); octx.clip();
+  try{ octx.drawImage(video,minX,minY,rw,rh,0,0,rw,rh); }catch(e){ return 0; }
+  octx.restore();
+  let data;
+  try{ data=octx.getImageData(0,0,rw,rh).data; }catch(e){ return 0; }
+  let total=0, white=0;
+  const vCut=Math.max(0.55, skinV*1.08); // brighter than the person's own skin, not a fixed absolute value
+  for(let i=0;i<data.length;i+=4){
+    if(data[i+3]<10) continue; total++;
+    const r=data[i],g=data[i+1],b=data[i+2];
+    const max=Math.max(r,g,b),min=Math.min(r,g,b);
+    const v=max/255, s=max===0?0:(max-min)/max;
+    if(v>vCut && s<0.30) white++;
+  }
+  // this crop never touches the screen (no canvas is drawn to the DOM) — it's read, scored, and discarded in-memory
+  return total?white/total:0;
+}
+
+const smoothBuf={earL:[],earR:[],mar:[],mouthWidth:[],cheekDist:[]};
+const emaVal={earL:null,earR:null,mar:null,mouthWidth:null,cheekDist:null};
+let teethFrameCounter=0, lastTeethVal=0, lastSkinV=0.6;
+function pushSmooth(key,val){
+  const buf=smoothBuf[key];buf.push(val);if(buf.length>SMOOTH_WINDOW)buf.shift();
+  const med=median(buf);
+  emaVal[key] = emaVal[key]===null ? med : emaVal[key]+(med-emaVal[key])*EMA_ALPHA;
+  return emaVal[key];
+}
+function resetSmooth(){Object.keys(smoothBuf).forEach(k=>{smoothBuf[k].length=0; emaVal[k]=null;});}
+
+let baseline={earL:0.3,earR:0.3,mouthWidth:0.35,cheekDist:0.5,mar:0.04};
+let calibSamples=null;
+function startCalibration(){ calibSamples={earL:[],earR:[],mouthWidth:[],cheekDist:[],mar:[]}; }
+function feedCalibration(earL,earR,mouthWidth,cheekDist,mar){
+  if(!calibSamples) return;
+  calibSamples.earL.push(earL); calibSamples.earR.push(earR);
+  calibSamples.mouthWidth.push(mouthWidth); calibSamples.cheekDist.push(cheekDist);
+  calibSamples.mar.push(mar);
+}
+function finishCalibration(){
+  if(calibSamples && calibSamples.earL.length>2){
+    baseline={
+      earL: trimmedMean(calibSamples.earL), earR: trimmedMean(calibSamples.earR),
+      mouthWidth: trimmedMean(calibSamples.mouthWidth), cheekDist: trimmedMean(calibSamples.cheekDist),
+      mar: trimmedMean(calibSamples.mar)
+    };
+  }
+  calibSamples=null;
+}
+
+// sqrt-curved response: early/subtle motion now shows up clearly instead of needing a big,
+// exaggerated expression before the bar (and the face model) visibly reacts
+function perceptual(x){ return Math.sqrt(clamp(x,0,1)); }
+function scoreMouthSmile(mouthWidthNorm){ return perceptual((mouthWidthNorm-baseline.mouthWidth)/0.075); }
+function scoreEyeSquint(avgEar){ if(!baseline.earL) return 0; const base=(baseline.earL+baseline.earR)/2; if(!base) return 0; return perceptual((1-avgEar/base)/0.7); }
+function scoreCheekSquint(cheekDist){ if(!baseline.cheekDist) return 0; return perceptual((1-cheekDist/baseline.cheekDist)/0.7); }
+
+const MISSIONS=[
+  { id:'mouth_only', label:'입만 웃기', desc:'눈은 웃지 말고 입으로만 활짝 웃으세요.',
+    cardCond:'입꼬리 0.5 이상 + 눈가 수축 0.25 이하로 3초',
+    explain:'진짜 웃음은 입꼬리와 함께 눈가 근육도 같이 움직여요. AI는 눈가 주름을 보고 진짜 웃음과 억지 웃음을 구별하도록 배웠기 때문에, 입만 웃으면 헷갈리게 합니다.',
+    metrics:[
+      {key:'mouthSmile', label:'입꼬리 올림 · mouthSmile', cmp:'>=', threshold:0.5, get:m=>m.mouthSmile,
+        tip:'입꼬리를 더 확실히 올려 보세요. 살짝의 미소로는 부족해요.'},
+      {key:'eyeSquint', label:'눈가 찡그림 · eyeSquint', cmp:'<=', threshold:0.25, get:m=>m.eyeSquint,
+        tip:'볼에 힘을 빼고 입꼬리만 옆으로 당겨 보세요. 거울 보듯 화면의 "눈가" 막대를 보면서 하세요.'},
+      {key:'cheekSquint', label:'볼 올림 · cheekSquint', cmp:'<=', threshold:0.25, get:m=>m.cheekSquint,
+        tip:'광대 근육에 힘을 빼고 입술만 움직여서 웃어보세요.'}
+    ]
+  },
+  { id:'no_teeth', label:'이빨 안 보이게 웃기', desc:'환하게 웃되 이빨은 하나도 보이면 안 돼요.',
+    cardCond:'입꼬리 0.5 이상 + 입 속 밝은 부분 18% 이하로 3초',
+    explain:'AI는 입 안의 밝은 영역(치아)을 감지해 웃음의 강도를 판단합니다. 입꼬리는 올리되 치아를 입술로 가리면 AI가 판단하기 어려워집니다.',
+    metrics:[
+      {key:'mouthSmile', label:'입꼬리 올림 · mouthSmile', cmp:'>=', threshold:0.5, get:m=>m.mouthSmile,
+        tip:'입꼬리를 더 확실히 올려 보세요.'},
+      {key:'teeth', label:'이빨 보임 · 입 속 밝은 픽셀 비율', cmp:'<=', threshold:0.18, get:m=>m.teeth, isPercent:true,
+        tip:'입술을 붙인 채로 입꼬리만 옆으로 당겨서 웃어보세요.'},
+      {key:'jawOpen', label:'입 벌림 · jawOpen', get:m=>m.mar, reference:true}
+    ]
+  },
+  { id:'no_yawn', label:'하품 숨기기', desc:'진짜로 하품을 하되 AI가 하품으로 못 알아채게 하세요.',
+    cardCond:'평소보다 입을 크게 벌린 상태가 4.5초 넘게 이어지면 하품으로 걸림 · 조건 유지 4.0초',
+    holdSeconds:4.0,
+    explain:'AI는 절대적인 입 벌림 크기가 아니라, 당신의 평소(캘리브레이션 때 잰) 입 모양보다 얼마나 더 크게, 얼마나 오래 벌어지는지를 봅니다. 판정까지 걸리는 시간을 4.5초로 늘려 실제 하품의 호흡 리듬에 맞게 여유를 뒀어요. 입 벌림을 짧게 끊어주거나 천천히, 작게 벌리면 하품으로 걸리지 않을 수 있어요.',
+    metrics:[
+      {key:'jawOpen', label:'평소 대비 입 벌림 · jawOpen', cmp:'<=', threshold:0.45, get:m=>m.mar-baseline.mar, sustainSeconds:4.5, signed:true,
+        tip:'하품이 나올 것 같으면 입을 짧게 두세 번 끊어 벌리거나, 코로 숨을 크게 쉬며 천천히 열었다 닫아 보세요.'}
+    ]
+  }
+];
+
+let step='idle';
+let faceMesh=null, processing=false, lastFaceTime=0;
+let currentMission=null;
+let holdAccum=0, holdEvalTime=null, holdFailSince=null, roundState={}, timeLimitStart=null;
+let challengeAnimId=null;
+let readyTimer=null, autoReturnTimer=null;
+let lastResultMission=null, lastResultFailedMetric=null;
+
+const $=id=>document.getElementById(id);
+function setStep(s){
+  step=s;
+  ['idle','select','challenge','result'].forEach((name,i)=>{
+    $('step-'+name).classList.toggle('active', name===s);
+    const pill=$('pill'+i);
+    pill.classList.toggle('active', name===s);
+    pill.classList.toggle('done', ['idle','select','challenge','result'].indexOf(s) > i);
+  });
+}
+
+let countingDown=false;
+function selectMission(m){
+  if(countingDown) return; // don't let a card click hijack an in-progress 3-2-1 countdown
+  currentMission = m;
+  renderCards();
+  const btn=$('readyBtn');
+  btn.disabled=false;
+  btn.textContent='준비됐어요 · 3초 후 시작';
+}
+function renderCards(){
+  const wrap=$('cardsWrap'); wrap.innerHTML='';
+  MISSIONS.forEach(m=>{
+    const sel = currentMission && m.id===currentMission.id;
+    const card=document.createElement('div');
+    card.className='mcard'+(sel?' sel':'');
+    card.setAttribute('role','button');
+    card.setAttribute('tabindex','0');
+    card.setAttribute('aria-pressed', sel?'true':'false');
+    card.innerHTML = '<div class="tag">선택됨</div>'+(m.advanced?'<div class="pick-badge">고급</div>':'')+
+      '<h3>'+m.label+'</h3><p>'+m.desc+'</p><div class="cond">'+m.cardCond+'</div>';
+    card.addEventListener('click', ()=>selectMission(m));
+    card.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter' || e.key===' '){ e.preventDefault(); selectMission(m); }
+    });
+    wrap.appendChild(card);
+  });
+}
+function goSelect(){
+  // no random pick anymore — the user chooses a mission from the full list themselves
+  clearInterval(readyTimer); countingDown=false;
+  currentMission = null;
+  renderCards();
+  $('readyBtn').disabled=true;
+  $('readyBtn').textContent='미션을 먼저 선택하세요';
+  setStep('select');
+}
+
+$('camBtn').addEventListener('click', async ()=>{
+  $('camBtn').disabled=true; $('camBtn').textContent='카메라 준비 중...';
+  $('camError').style.display='none';
+  stopCamera(); // release any stream left over from a previous failed attempt before requesting a new one
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    $('camError').style.display='block';
+    $('camError').textContent='이 브라우저(또는 현재 페이지 연결)에서는 카메라 기능을 사용할 수 없습니다. HTTPS 주소로 접속했는지, 최신 브라우저(Chrome/Safari/Edge)를 쓰고 있는지 확인해주세요.';
+    $('camBtn').disabled=false; $('camBtn').textContent='카메라 시작';
+    return;
+  }
+  let stream;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'},audio:false});
+  }catch(e){
+    console.error('getUserMedia failed:', e);
+    $('camError').style.display='block';
+    $('camError').textContent='카메라 접근이 거부됐습니다 ('+e.name+'). 브라우저 주소창의 카메라 권한을 확인해주세요.';
+    $('camBtn').disabled=false; $('camBtn').textContent='카메라 시작';
+    return;
+  }
+  try{
+    const video=$('video'); video.srcObject=stream;
+    await new Promise(res=>{ video.onloadedmetadata=res; });
+    await video.play();
+  }catch(e){
+    console.error('video play failed:', e);
+    $('camError').style.display='block';
+    $('camError').textContent='카메라 영상을 재생하지 못했습니다: '+e.message;
+    $('camBtn').disabled=false; $('camBtn').textContent='카메라 시작';
+    return;
+  }
+  try{
+    if(typeof FaceMesh==='undefined') throw new Error('FaceMesh 라이브러리 스크립트가 로드되지 않았습니다.');
+    faceMesh=new FaceMesh({locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`});
+    faceMesh.setOptions({maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.6, minTrackingConfidence:0.5});
+    faceMesh.onResults(onResults);
+    await faceMesh.initialize();
+    requestAnimationFrame(tick);
+    goSelect();
+  }catch(e){
+    console.error('FaceMesh init failed:', e);
+    $('camError').style.display='block';
+    $('camError').textContent='얼굴 인식 모델을 불러오지 못했습니다. 인터넷 연결, 광고 차단 확장 프로그램, 또는 방화벽/보안 프로그램이 cdn.jsdelivr.net 접속을 막고 있지 않은지 확인한 뒤 새로고침해주세요. 상세: '+e.message;
+    $('camBtn').disabled=false; $('camBtn').textContent='카메라 시작';
+  }
+});
+$('readyBtn').addEventListener('click', ()=>{
+  if(!currentMission || countingDown) return;
+  countingDown=true;
+  clearInterval(readyTimer);
+  $('readyBtn').disabled=true;
+  startCalibration(); resetSmooth();
+  let n=READY_COUNTDOWN;
+  $('readyBtn').textContent = n+'초 후 시작...';
+  readyTimer=setInterval(()=>{
+    n--;
+    if(n<=0){
+      clearInterval(readyTimer);
+      countingDown=false;
+      finishCalibration();
+      $('readyBtn').disabled=false;
+      $('readyBtn').textContent='준비됐어요 · 3초 후 시작';
+      startChallenge();
+    } else {
+      $('readyBtn').textContent=n+'초 후 시작...';
+    }
+  },1000);
+});
+
+function startChallenge(){
+  holdAccum=0; holdEvalTime=null; holdFailSince=null; roundState={};
+  teethFrameCounter=0; lastTeethVal=0; lastSkinV=0.6;
+  timeLimitStart=performance.now()/1000;
+  $('challengeMissionTitle').textContent=currentMission.label;
+  $('mouthZoomWrap').style.display = currentMission.id==='no_teeth' ? 'flex' : 'none';
+  if($('mouthZoomFill')) $('mouthZoomFill').style.width='0%';
+  if($('mouthZoomLabel')) $('mouthZoomLabel').textContent='치아 밝기 감지 0%';
+  const initHold = currentMission.holdSeconds || HOLD_SECONDS;
+  $('holdFill').style.width='0%';
+  $('holdLabel').textContent='0.0 / '+initHold.toFixed(1)+'s';
+  buildMetricRows();
+  setStep('challenge');
+  cancelAnimationFrame(challengeAnimId);
+  challengeAnimId=requestAnimationFrame(challengeLoop);
+}
+
+function buildMetricRows(){
+  const list=$('metricsList'); list.innerHTML='';
+  currentMission.metrics.forEach(mt=>{
+    const row=document.createElement('div'); row.className='metric'; row.id='row-'+mt.key;
+    row.innerHTML =
+      '<div class="metric-top"><span class="name">'+mt.label+'</span>'+
+      (mt.reference ? '<span class="val" id="val-'+mt.key+'">0.00</span>' :
+        '<span><span class="pass-badge ok" id="badge-'+mt.key+'">통과</span> <span class="val" id="val-'+mt.key+'">0.00</span></span>')+
+      '</div><div class="metric-track"><div class="metric-fill" id="fill-'+mt.key+'" style="background:var(--good);width:0%"></div></div>'+
+      '<div class="metric-hint">'+(mt.reference ? '참고용' :
+        mt.sustainSeconds ? '평소보다 '+mt.threshold+' 이상 벌어진 상태가 '+mt.sustainSeconds+'초 넘게 이어지면 걸려요 (잠깐은 괜찮아요)' :
+        (mt.cmp==='>=' ? (mt.threshold+' 이상이어야 해요') : (mt.isPercent ? Math.round(mt.threshold*100)+'% 이하이어야 해요' : mt.threshold+' 이하여야 해요')))+'</div>';
+    list.appendChild(row);
+  });
+}
+
+function onResults(results){
+  const video=$('video');
+  const w=video.videoWidth, h=video.videoHeight;
+  if(results.multiFaceLandmarks && results.multiFaceLandmarks.length>0 && w && h){
+    lastFaceTime=performance.now()/1000;
+    const lm=results.multiFaceLandmarks[0];
+    const rot=makeRotatedGetter(lm,w,h);
+    const rawEarL=computeEAR(LEFT_EYE,rot.get), rawEarR=computeEAR(RIGHT_EYE,rot.get);
+    const rawMar=computeMAR(rot.get);
+    const fw=dist(rot.get(234),rot.get(454));
+    const rawMouthWidth=computeMouthWidthNorm(rot.get,fw);
+    const rawCheek=computeCheekDist(rot.get,fw);
+    const earL=pushSmooth('earL',rawEarL), earR=pushSmooth('earR',rawEarR);
+    const mar=pushSmooth('mar',rawMar);
+    const mouthWidth=pushSmooth('mouthWidth',rawMouthWidth);
+    const cheekDist=pushSmooth('cheekDist',rawCheek);
+
+    if(calibSamples){ feedCalibration(earL,earR,mouthWidth,cheekDist,mar); }
+
+    // Teeth-whiteness detection needs a pixel readout (getImageData) which is the single most
+    // expensive step per frame — sampling it every 3rd tracked frame (instead of every frame)
+    // removes most of the lag while the on-screen bar still updates several times a second.
+    const needTeeth = step==='challenge' && currentMission && currentMission.metrics.some(m=>m.key==='teeth');
+    if(needTeeth){
+      teethFrameCounter++;
+      if(teethFrameCounter%3===0){
+        lastSkinV=sampleForeheadBrightness(video,lm,w,h);
+        lastTeethVal=teethWhiteRatio(video,lm,w,h,lastSkinV);
+      }
+      const fillEl=$('mouthZoomFill'), labelEl=$('mouthZoomLabel');
+      if(fillEl) fillEl.style.width=Math.round(lastTeethVal*100)+'%';
+      if(labelEl) labelEl.textContent='치아 밝기 감지 '+Math.round(lastTeethVal*100)+'%';
+    }
+    const teeth = needTeeth ? lastTeethVal : 0;
+
+    const avgEar=(earL+earR)/2;
+    const metrics={
+      mouthSmile: scoreMouthSmile(mouthWidth),
+      eyeSquint: scoreEyeSquint(avgEar),
+      cheekSquint: scoreCheekSquint(cheekDist),
+      teeth: teeth,
+      mar: mar
+    };
+    targetMetrics.mouthSmile=metrics.mouthSmile; targetMetrics.eyeSquint=metrics.eyeSquint;
+    targetMetrics.cheekSquint=metrics.cheekSquint; targetMetrics.teeth=metrics.teeth; targetMetrics.mar=metrics.mar;
+    faceLostDecay=false;
+    $('trackStatus').innerHTML='<span class="track-dot"></span><span>얼굴 점 478개 추적 중 · 기울기 '+rot.rollDeg.toFixed(0)+'°</span>';
+    $('trackStatus').style.color='var(--good)';
+
+    if(step==='challenge') evaluateChallenge(metrics, true);
+  } else {
+    faceLostDecay=true;
+    $('trackStatus').innerHTML='<span class="track-dot" style="background:var(--bad);"></span><span>얼굴이 검출되지 않았습니다</span>';
+    $('trackStatus').style.color='var(--bad)';
+    if(step==='challenge') evaluateChallenge(null,false);
+  }
+}
+
+/* --- 얼굴 스키매틱 애니메이션: 실제 인식값(targetMetrics)을 부드럽게 보간(lerp)하여
+   프레임 노이즈나 인식 프레임 저하와 무관하게 표정 모션이 자연스럽게 보이도록 처리 --- */
+let targetMetrics={mouthSmile:0,eyeSquint:0,cheekSquint:0,teeth:0,mar:0};
+let displayMetrics={mouthSmile:0,eyeSquint:0,cheekSquint:0,teeth:0,mar:0};
+let faceLostDecay=false, lastAnimT=performance.now();
+let blinkTimer=1800+Math.random()*2200, blinkProgress=null;
+
+function renderFaceSvg(m, blinkVal, tNow){
+  const eyeL=$('eyeL'), eyeR=$('eyeR'), browL=$('browL'), browR=$('browR');
+  const mouth=$('mouth'), outline=$('mouthOutline'), lipShine=$('lipShine');
+  const tongue=$('tongue'), teethGroup=$('teethGroup'), dimpleL=$('dimpleL'), dimpleR=$('dimpleR');
+
+  const squint=clamp(m.eyeSquint+blinkVal,0,1.05);
+  const ry=clamp(9*(1-squint*0.92),0.6,9);
+  eyeL.setAttribute('ry',ry.toFixed(2)); eyeR.setAttribute('ry',ry.toFixed(2));
+
+  const browDrop=m.eyeSquint*9;
+  browL.setAttribute('d','M90,'+(95+browDrop*0.4).toFixed(1)+' Q110,'+(82+browDrop).toFixed(1)+' 130,'+(95+browDrop*0.4).toFixed(1));
+  browR.setAttribute('d','M170,'+(95+browDrop*0.4).toFixed(1)+' Q190,'+(82+browDrop).toFixed(1)+' 210,'+(95+browDrop*0.4).toFixed(1));
+
+  // subtle idle sway so the mouth model never looks perfectly frozen (cosmetic only)
+  const cx = 150 + Math.sin(tNow/1400)*0.6;
+
+  const lift=m.mouthSmile*24;
+  const openAmt=clamp(m.mar,0,0.9)*42;
+  const widen=m.mouthSmile*10;
+  const baseY=195-lift;
+  const lx=115-widen, rx=185+widen;
+  const topY=baseY+openAmt*0.15;
+  // A real smile's corners rise ABOVE the center of the lips — the center control point must move
+  // DOWN relative to the corners as the smile grows. The previous formula (baseY - lift*0.5) pushed
+  // the center UP even faster than the corners, so the curve bent like a frown even though the
+  // corner position itself was rising — exactly the "position up, direction still pointing down" bug.
+  const midCtrlY=topY+lift*0.55-openAmt*0.1;
+  const botCtrlY=topY+openAmt*1.25+lift*0.15;
+  const upperD='M'+lx.toFixed(1)+','+topY.toFixed(1)+' Q'+cx.toFixed(1)+','+midCtrlY.toFixed(1)+' '+rx.toFixed(1)+','+topY.toFixed(1);
+  const lowerD='Q'+cx.toFixed(1)+','+botCtrlY.toFixed(1)+' '+lx.toFixed(1)+','+topY.toFixed(1);
+  const filled=openAmt>4;
+  mouth.setAttribute('d', filled ? (upperD+' '+lowerD+' Z') : upperD);
+  mouth.setAttribute('fill', filled ? 'url(#cavityGrad)' : 'none');
+  outline.setAttribute('d', upperD);
+  lipShine.setAttribute('d', upperD);
+  lipShine.setAttribute('opacity', clamp(0.22+m.mouthSmile*0.28,0,0.5).toFixed(2));
+
+  // smile dimples fade in with the corners lifting
+  const dimpleOp = clamp(m.mouthSmile*1.4-0.15,0,0.9);
+  dimpleL.setAttribute('cx', lx.toFixed(1)); dimpleL.setAttribute('cy', topY.toFixed(1));
+  dimpleR.setAttribute('cx', rx.toFixed(1)); dimpleR.setAttribute('cy', topY.toFixed(1));
+  dimpleL.setAttribute('opacity', dimpleOp.toFixed(2)); dimpleR.setAttribute('opacity', dimpleOp.toFixed(2));
+
+  // teeth rendered as 6 individual teeth (not one flat block) for a more convincing reveal
+  const teethVisible = filled && m.teeth>0.03;
+  teethGroup.setAttribute('opacity', teethVisible ? clamp(0.25+m.teeth*0.9,0,0.95).toFixed(2) : 0);
+  if(teethVisible){
+    const innerL=lx+6, innerR=rx-6, span=Math.max(0,innerR-innerL);
+    const th=clamp(m.teeth,0,1)*16;
+    const n=6, gap=1.4, toothW=Math.max(0,(span-gap*(n-1))/n);
+    for(let i=0;i<n;i++){
+      const tRect=$('teeth'+i);
+      const tx=innerL+i*(toothW+gap);
+      tRect.setAttribute('x', tx.toFixed(1));
+      tRect.setAttribute('y', (topY-openAmt*0.05).toFixed(1));
+      tRect.setAttribute('width', toothW.toFixed(1));
+      tRect.setAttribute('height', th.toFixed(1));
+    }
+  }
+
+  // tongue only appears once the mouth is genuinely wide open (yawn-scale), kept subtle since
+  // the real mouth camera view is hidden and this schematic just needs to read correctly
+  const tongueVisible = filled && openAmt>20;
+  if(tongueVisible){
+    const tW=(rx-lx)*0.34;
+    const tBaseY=topY+openAmt*0.3, tTipY=botCtrlY-openAmt*0.22;
+    tongue.setAttribute('d',
+      'M'+(cx-tW).toFixed(1)+','+tBaseY.toFixed(1)+
+      ' Q'+cx.toFixed(1)+','+tTipY.toFixed(1)+' '+(cx+tW).toFixed(1)+','+tBaseY.toFixed(1)+
+      ' Q'+cx.toFixed(1)+','+(topY+openAmt*0.55).toFixed(1)+' '+(cx-tW).toFixed(1)+','+tBaseY.toFixed(1)+' Z');
+    tongue.setAttribute('opacity', clamp((openAmt-20)/14,0,0.85).toFixed(2));
+  } else {
+    tongue.setAttribute('opacity', 0);
+  }
+}
+
+function faceAnimLoop(now){
+  const dt=Math.min(60, now-lastAnimT); lastAnimT=now;
+  if(faceLostDecay){
+    targetMetrics.mouthSmile*=0.93; targetMetrics.eyeSquint*=0.93;
+    targetMetrics.cheekSquint*=0.93; targetMetrics.mar*=0.9;
+  }
+  const k=1-Math.pow(0.001, dt/1000);
+  // mouth-related channels (mar/teeth/mouthSmile) track the real signal more tightly than
+  // eye/cheek channels — the mouth motion is the part that has to read as "correct" on screen
+  const speedMul={mouthSmile:4.2, mar:4.6, teeth:5.2, eyeSquint:3.4, cheekSquint:3.4};
+  ['mouthSmile','eyeSquint','cheekSquint','mar','teeth'].forEach(key=>{
+    displayMetrics[key]+=(targetMetrics[key]-displayMetrics[key])*Math.min(1,k*speedMul[key]);
+  });
+
+  blinkTimer-=dt;
+  if(blinkTimer<=0 && blinkProgress===null){ blinkProgress=0; blinkTimer=2500+Math.random()*3500; }
+  let blinkVal=0;
+  if(blinkProgress!==null){
+    blinkProgress+=dt/130;
+    blinkVal = blinkProgress<1 ? Math.sin(Math.min(1,blinkProgress)*Math.PI) : 0;
+    if(blinkProgress>=1) blinkProgress=null;
+  }
+  renderFaceSvg(displayMetrics, blinkVal, now);
+  requestAnimationFrame(faceAnimLoop);
+}
+requestAnimationFrame(faceAnimLoop);
+
+function evaluateChallenge(metrics, faceSeen){
+  const now=performance.now()/1000;
+  const elapsedTotal = now-timeLimitStart;
+  const timeLeft = Math.max(0, TIME_LIMIT-elapsedTotal);
+  $('timeLeftNum').textContent=Math.ceil(timeLeft);
+  const circumference=276.5;
+  $('ringProgress').setAttribute('stroke-dashoffset', circumference*(1-timeLeft/TIME_LIMIT));
+
+  let allPass=true, firstFailKey=null;
+  if(!faceSeen || now-lastFaceTime>0.5){
+    allPass=false;
+    $('feedbackBox').className='feedback-box';
+    $('feedbackBox').textContent='얼굴이 화면에 보이지 않아요. 카메라 중앙에 얼굴을 맞춰주세요.';
+    currentMission.metrics.filter(m=>!m.reference).forEach(mt=>{
+      const badgeEl=$('badge-'+mt.key), fillEl=$('fill-'+mt.key);
+      if(badgeEl){ badgeEl.textContent='측정 중단'; badgeEl.className='pass-badge'; badgeEl.style.background='var(--panel2)'; badgeEl.style.color='var(--muted)'; }
+      if(fillEl) fillEl.style.background='var(--panel2)';
+    });
+  } else {
+    currentMission.metrics.forEach(mt=>{
+      const val=mt.get(metrics);
+      roundState[mt.key+'_liveVal']=val;
+
+      const fillEl=$('fill-'+mt.key), valEl=$('val-'+mt.key), badgeEl=$('badge-'+mt.key);
+      const displayVal = mt.isPercent ? Math.round(val*100)+'%' : (mt.signed ? (val>=0?'+':'')+val.toFixed(2) : val.toFixed(mt.reference?3:2));
+      if(valEl) valEl.textContent=displayVal;
+
+      if(mt.reference) return;
+
+      let pass;
+      if(mt.sustainSeconds){
+        const now2=performance.now()/1000;
+        const exceed = mt.cmp==='<=' ? val>mt.threshold : val<mt.threshold;
+        if(exceed){ if(roundState[mt.key+'_since']==null) roundState[mt.key+'_since']=now2; }
+        else roundState[mt.key+'_since']=null;
+        const sustained = roundState[mt.key+'_since']!=null && (now2-roundState[mt.key+'_since'])>=mt.sustainSeconds;
+        pass = !sustained;
+      } else {
+        // raw per-frame verdict, then debounce against single-frame detector noise
+        const rawPass = mt.cmp==='>=' ? val>=mt.threshold : val<=mt.threshold;
+        const spKey=mt.key+'_sp', sfKey=mt.key+'_sf', stKey=mt.key+'_stable';
+        if(rawPass){ roundState[spKey]=(roundState[spKey]||0)+1; roundState[sfKey]=0; }
+        else { roundState[sfKey]=(roundState[sfKey]||0)+1; roundState[spKey]=0; }
+        if(roundState[stKey]===undefined) roundState[stKey]=rawPass;
+        if(roundState[spKey]>=PASS_STREAK_NEEDED) roundState[stKey]=true;
+        if(roundState[sfKey]>=PASS_STREAK_NEEDED) roundState[stKey]=false;
+        pass = roundState[stKey];
+      }
+      roundState[mt.key+'_livePass']=pass;
+      if(badgeEl){ badgeEl.textContent=pass?'통과':'걸림'; badgeEl.className='pass-badge '+(pass?'ok':'bad'); badgeEl.style.background=''; badgeEl.style.color=''; }
+      if(fillEl){
+        const pct = mt.cmp==='>=' ? val/(mt.threshold*1.6) : val/(mt.threshold*2);
+        fillEl.style.width=(clamp(pct,0,1)*100)+'%';
+        fillEl.style.background = pass ? 'var(--good)' : 'var(--bad)';
+      }
+      if(!pass){ allPass=false; if(!firstFailKey) firstFailKey=mt.key; }
+    });
+
+    if(allPass){
+      $('feedbackBox').className='feedback-box ok';
+      $('feedbackBox').textContent='좋아요! 지금 상태를 유지하세요.';
+    } else {
+      const mt=currentMission.metrics.find(m=>m.key===firstFailKey);
+      $('feedbackBox').className='feedback-box';
+      $('feedbackBox').textContent = mt ? failText(mt) : '조건을 맞춰보세요.';
+    }
+  }
+
+  const holdTarget = (currentMission && currentMission.holdSeconds) || HOLD_SECONDS;
+  const HOLD_GRACE_SECONDS = 0.5;
+  if(holdEvalTime===null) holdEvalTime=now;
+  const dt=Math.min(Math.max(now-holdEvalTime,0), 0.25); // clamp so a stalled tab can't fast-forward the hold
+  holdEvalTime=now;
+
+  if(allPass){
+    holdAccum=Math.min(holdAccum+dt, holdTarget);
+    holdFailSince=null;
+  } else {
+    if(holdFailSince===null) holdFailSince=now;
+    if(now-holdFailSince>HOLD_GRACE_SECONDS) holdAccum=0; // sustained failure: reset for real
+    // otherwise: freeze progress during the brief grace window, don't reset it
+  }
+  const hold=holdAccum;
+  $('holdFill').style.width=(clamp(hold/holdTarget,0,1)*100)+'%';
+  $('holdLabel').textContent=hold.toFixed(1)+' / '+holdTarget.toFixed(1)+'s';
+
+  if(hold>=holdTarget){ finishChallenge(true); return; }
+  if(timeLeft<=0){ finishChallenge(false); return; }
+}
+function failText(mt){
+  const texts={
+    mouthSmile:'입꼬리를 더 확실히 올려 보세요.',
+    eyeSquint:'눈가에 힘이 들어갔어요. 눈은 멍하게!',
+    cheekSquint:'광대가 올라가고 있어요. 볼에 힘을 빼보세요.',
+    teeth:'이빨이 보여요! 입술로 가려주세요.',
+    jawOpen:'입을 너무 크게 벌리고 있어요.'
+  };
+  return texts[mt.key] || '조건을 맞춰보세요.';
+}
+
+function challengeLoop(){
+  if(step!=='challenge') return;
+  const now=performance.now()/1000;
+  const timeLeft=Math.max(0, TIME_LIMIT-(now-timeLimitStart));
+  $('timeLeftNum').textContent=Math.ceil(timeLeft);
+  $('ringProgress').setAttribute('stroke-dashoffset', 276.5*(1-timeLeft/TIME_LIMIT));
+  if(timeLeft<=0){ finishChallenge(false); return; }
+  challengeAnimId=requestAnimationFrame(challengeLoop);
+}
+
+function finishChallenge(ok){
+  cancelAnimationFrame(challengeAnimId);
+  lastResultMission=currentMission;
+  const rows=$('resultRows'); rows.innerHTML='';
+  let failKey=null;
+  currentMission.metrics.filter(m=>!m.reference).forEach(mt=>{
+    const val = roundState[mt.key+'_liveVal'] ?? 0;
+    const pass = roundState[mt.key+'_livePass'] ?? false;
+    if(!pass && !failKey) failKey=mt.key;
+    const valStr = mt.isPercent ? Math.round(val*100)+'%' : (mt.signed ? (val>=0?'+':'')+val.toFixed(2) : val.toFixed(2));
+    const thStr = mt.isPercent ? (mt.cmp==='>='?'':'≤ ')+Math.round(mt.threshold*100)+'%' : (mt.cmp==='>='?'≥ ':'≤ ')+mt.threshold;
+    rows.innerHTML += '<tr><td>'+mt.label.split(' · ')[0]+'</td><td><b>'+valStr+'</b></td><td>'+thStr+'</td>'+
+      '<td style="color:'+(pass?'var(--good)':'var(--bad)')+';font-weight:800;">'+(pass?'통과':'걸림')+'</td></tr>';
+  });
+  lastResultFailedMetric = failKey ? currentMission.metrics.find(m=>m.key===failKey) : null;
+
+  $('resultTitle').textContent = ok ? 'AI를 속였어요!' : '들켰어요!';
+  $('resultTitle').className = 'result-title ' + (ok?'ok':'bad');
+  const holdTargetTxt = ((currentMission && currentMission.holdSeconds) || HOLD_SECONDS).toFixed(1);
+  if(ok){
+    $('resultDesc').innerHTML = '<b>'+currentMission.label+'</b> 미션을 '+holdTargetTxt+'초 동안 완벽하게 유지했어요. AI가 표정을 헷갈려 했습니다.';
+    $('tipText').textContent = '완벽했어요! 다른 미션에도 도전해보세요.';
+  } else if(lastResultFailedMetric){
+    const label = lastResultFailedMetric.label.split(' · ')[0];
+    $('resultDesc').innerHTML = '다른 조건은 맞췄지만 <b>'+label+'</b> 때문에 AI가 알아챘어요.';
+    $('tipText').textContent = lastResultFailedMetric.tip;
+  } else {
+    // ran out of time without ever failing a specific metric at the very end — the honest
+    // reason is "didn't hold it continuously for long enough", not any one attribute
+    $('resultDesc').innerHTML = '조건은 거의 다 맞았지만 <b>'+holdTargetTxt+'초 연속 유지</b>에는 실패해서 시간 초과로 들켰어요.';
+    $('tipText').textContent = '표정을 미리 만들어두고 카운트다운이 끝나자마자 바로 유지해보세요. 시간이 부족했을 뿐이에요.';
+  }
+  $('explainText').textContent = currentMission.explain;
+
+  setStep('result');
+  let n=AUTO_RETURN;
+  $('autoNote').textContent = n+'초 후 자동으로 처음 화면으로 돌아갑니다';
+  clearInterval(autoReturnTimer);
+  autoReturnTimer=setInterval(()=>{
+    n--;
+    if(n<=0){ clearInterval(autoReturnTimer); goSelect(); }
+    else $('autoNote').textContent = n+'초 후 자동으로 처음 화면으로 돌아갑니다';
+  },1000);
+}
+
+$('retryBtn').addEventListener('click', ()=>{
+  clearInterval(autoReturnTimer);
+  currentMission = lastResultMission;
+  renderCards();
+  $('readyBtn').disabled=false;
+  $('readyBtn').textContent='준비됐어요 · 3초 후 시작';
+  setStep('select');
+});
+$('restartBtn').addEventListener('click', ()=>{
+  clearInterval(autoReturnTimer);
+  goSelect();
+});
+
+const FACEMESH_MIN_INTERVAL_MS=33; // ~30fps cap: FaceMesh inference is the heaviest per-frame
+                                    // cost, so running it uncapped (up to 60fps) was the main
+                                    // cause of the reported lag. 30fps keeps tracking responsive
+                                    // while still cutting the inference load roughly in half.
+let lastFaceMeshSend=0;
+async function tick(){
+  const now=performance.now();
+  if(faceMesh && $('video').readyState>=2 && !processing && (now-lastFaceMeshSend)>=FACEMESH_MIN_INTERVAL_MS){
+    processing=true; lastFaceMeshSend=now;
+    try{ await faceMesh.send({image:$('video')}); }catch(e){}
+    processing=false;
+  }
+  requestAnimationFrame(tick);
+}
+
+// Stop the camera stream cleanly when the page is closed/navigated away, instead of relying
+// only on the browser's own teardown — keeps the "we don't keep your video" claim honest.
+function stopCamera(){
+  const v=$('video');
+  if(v && v.srcObject){
+    v.srcObject.getTracks().forEach(t=>t.stop());
+    v.srcObject=null;
+  }
+}
+window.addEventListener('pagehide', stopCamera);
+window.addEventListener('beforeunload', stopCamera);
+
+// Backgrounding a tab doesn't stop performance.now() from advancing, so without this a user
+// who alt-tabs mid-challenge would come back to find the round-timer already expired (unfair
+// instant "들켰어요!") and the face-tracking treated as lost. Shift the relevant clocks forward
+// by exactly how long the tab was hidden so returning feels seamless instead of punishing.
+let hiddenAt=null;
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    hiddenAt=performance.now()/1000;
+  } else if(hiddenAt!==null){
+    const pausedSec=performance.now()/1000-hiddenAt;
+    if(timeLimitStart!==null) timeLimitStart+=pausedSec;
+    if(holdEvalTime!==null) holdEvalTime+=pausedSec;
+    if(holdFailSince!==null) holdFailSince+=pausedSec;
+    lastFaceTime+=pausedSec;
+    lastAnimT=performance.now();
+    hiddenAt=null;
+  }
+});
+</script>
+</body>
+</html>
