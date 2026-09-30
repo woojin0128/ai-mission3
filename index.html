@@ -425,19 +425,29 @@ function irisDiameter(lm,w,h,idx){
   return isFinite(d)?d:0;
 }
 function faceScale(lm,w,h){
+  const fw=dist(pt(lm,234,w,h), pt(lm,454,w,h));
+  const fwOk = isFinite(fw) && fw>1;
   const a=irisDiameter(lm,w,h,IRIS_L), b=irisDiameter(lm,w,h,IRIS_R);
+  let iris=0;
   if(a>1 && b>1){
     // 한쪽 홍채 피팅이 망가지면(가려짐·반사) 평균이 끌려갑니다. 두 값이 25% 넘게 벌어지면
     // 더 큰 쪽을 믿습니다 — 홍채는 가려질 때만 작게 보이고, 커 보일 이유는 없기 때문입니다.
     const lo=Math.min(a,b), hi=Math.max(a,b);
-    return ((hi-lo)/hi > 0.25 ? hi : (a+b)/2) * IRIS_TO_FACEWIDTH;
+    iris = ((hi-lo)/hi > 0.25 ? hi : (a+b)/2);
+  } else if(a>1) iris=a;
+  else if(b>1) iris=b;
+
+  if(iris>0){
+    const S=iris*IRIS_TO_FACEWIDTH;
+    /* 홍채는 작아서 피팅이 어긋나면 기준 길이가 통째로 무너지고, 그러면 모든 수치와
+       "얼굴이 너무 작아요" 판정까지 함께 망가집니다. 얼굴 폭과 대조해 말이 되는 범위
+       안에 있을 때만 홍채 기준을 쓰고, 벗어나면 훨씬 둔하지만 안정적인 얼굴 폭을 씁니다. */
+    if(!fwOk) return S;
+    const r=S/fw;
+    if(r>0.55 && r<1.8) return S;
+    return fw;
   }
-  let sum=0,n=0;
-  if(a>1){sum+=a;n++;} if(b>1){sum+=b;n++;}
-  if(n) return (sum/n)*IRIS_TO_FACEWIDTH;
-  // 홍채 점이 없는 환경에서는 얼굴 폭으로 되돌아갑니다(정확도는 떨어지지만 동작은 유지).
-  const fw=dist(pt(lm,234,w,h), pt(lm,454,w,h));
-  return isFinite(fw)?fw:0;
+  return fwOk?fw:0;
 }
 
 /* ── 고개 방향 추정 ────────────────────────────────────────────────────────────
@@ -532,7 +542,12 @@ let calibSamples=null;
    고개를 크게 흔들어도 "안정적"으로 보이기 때문입니다. */
 const CALIB_CHECK_ONLY=['yawRaw','widthRaw'];
 function calibSampleCount(){ return calibSamples ? calibSamples.mouthWidth.length : 0; }
-function startCalibration(){ calibSamples={lidL:[],lidR:[],mouthWidth:[],browGap:[],riseL:[],riseR:[],yaw:[],pitch:[],browKnit:[],browSlant:[],yawRaw:[],widthRaw:[]}; }
+function startCalibration(){
+  /* 필터 초기화를 여기서 함께 합니다. 호출하는 쪽에서 따로 불러주도록 두면 언젠가
+     빠뜨리게 되고, 그러면 직전 사람의 얼굴 값이 필터에 남아 새 기준에 섞여 들어갑니다. */
+  resetSmooth(); resetAnchors();
+  calibSamples={lidL:[],lidR:[],mouthWidth:[],browGap:[],riseL:[],riseR:[],yaw:[],pitch:[],browKnit:[],browSlant:[],yawRaw:[],widthRaw:[]};
+}
 /* 캘리브레이션 중의 눈 깜빡임은 "평소 눈 크기"를 실제보다 작게 만들어 기준을 망칩니다.
    그래서 깜빡이는 프레임은 표본에서 제외합니다. */
 /* 예전에는 깜빡이는 프레임을 여기서 걸러냈는데, 그 판정이 '직전 기준값' 대비 비율이라
@@ -569,12 +584,11 @@ function trimmedStdev(arr){
 function finishCalibration(){
   const cs=calibSamples;
   calibSamples=null;
-  if(!cs || cs.mouthWidth.length<CALIB_MIN_SAMPLES) return false;
-  if(cs.lidL.length<CALIB_MIN_SAMPLES/2 || cs.lidR.length<CALIB_MIN_SAMPLES/2) return false;
-  /* 버튼을 누른 직후 0.5초는 아직 자세와 표정을 잡는 중입니다. 방금까지 웃고 있었다면
-     그 잔상이 "무표정 기준"에 섞여 이후 판정이 통째로 어긋납니다. 표본이 넉넉할 때는
-     앞부분을 버리고 안정된 뒷부분만 씁니다. */
-  const settle = s => (s.length > CALIB_SETTLE_DROP*2 ? s.slice(CALIB_SETTLE_DROP) : s);
+  const n = cs ? cs.mouthWidth.length : 0;
+  if(n < CALIB_MIN_SAMPLES){
+    return {ok:false, why:'준비 시간 동안 얼굴을 '+n+'프레임밖에 읽지 못했어요. 얼굴이 화면 안에 다 들어오게 하고, 방을 조금 더 밝게 한 뒤 다시 눌러주세요.'};
+  }
+  const settle = a => (a.length > CALIB_SETTLE_DROP*2 ? a.slice(CALIB_SETTLE_DROP) : a);
   const use={};
   Object.keys(cs).forEach(k=>{ use[k]=settle(cs[k]); });
   const next={};
@@ -582,28 +596,25 @@ function finishCalibration(){
     if(CALIB_CHECK_ONLY.indexOf(k)>=0) return;
     next[k] = use[k].length ? trimmedMean(use[k]) : baseline[k];
   });
-  const finiteOk = Object.keys(next).every(k=>isFinite(next[k]));
-  const sane = finiteOk && next.lidL>0.005 && next.lidR>0.005 &&
-               next.mouthWidth>0.10 && next.browGap>0.005 && next.pitch>0.02;
-  /* 흔들림은 반드시 '절단 표준편차'로 재야 합니다. 그냥 표준편차를 쓰면 3초 동안의 눈
-     깜빡임 한두 번이 퍼짐을 크게 부풀려서, 가만히 있었는데도 "움직였다"고 거부됐습니다.
-     입 크기와 고개 방향만 봅니다 — 눈과 입꼬리까지 더했더니 정상적인 미세한 움직임에도
-     거부되는 일이 잦았고, 표정이 바뀌면 입 크기에서 이미 걸립니다. */
-  /* 두 검사는 서로 다른 신호를 봐야 합니다. 측정해서 정한 결론입니다.
 
-     입 크기 — 필터를 거친 값. 필터 전 값으로 재면 카메라 노이즈(0.047)와 실제로 웃으며
-     변하는 표정(0.047)이 수치상 구분되지 않아, 화질 나쁜 카메라를 쓰는 사람이 가만히
-     있어도 "움직였다"고 거부됩니다. 필터를 거치면 노이즈는 0.022로 내려가고 표정 변화는
-     0.046으로 남아 확실히 갈립니다. 문턱 0.037.
-
-     고개 방향 — 필터 전 값. 여기서는 정반대입니다. 고개를 빠르게 좌우로 흔들면 필터가
-     그걸 평균 내버려 0.001(완전히 정지한 것처럼)로 보입니다. 필터 전 값은 0.098로
-     또렷이 잡힙니다. 문턱 0.012. */
-  const steady = trimmedStdev(use.mouthWidth) < next.mouthWidth*0.037 &&
-                 trimmedStdev(use.yawRaw.length?use.yawRaw:use.yaw) < 0.012;
-  if(!sane || !steady) return false;
+  /* 여기서 막을 수 있는 건 '측정 자체가 성립하지 않은' 경우뿐입니다. 값이 숫자가 아니거나
+     0이면 이후 모든 나눗셈이 무너지므로 그때만 거부합니다. 자세가 조금 틀어졌거나 얼굴이
+     흔들린 건 거부 사유가 아닙니다 — 그 판정을 현실에 맞게 세우는 데 두 번 실패했고,
+     틀렸을 때의 대가가 "아예 못 함"이라 너무 큽니다. */
+  const needed=['lidL','lidR','mouthWidth','browGap','riseL','riseR','pitch','browKnit'];
+  const usable = needed.every(k=>isFinite(next[k])) &&
+                 next.lidL>0 && next.lidR>0 && next.mouthWidth>0 &&
+                 next.browGap>0 && next.browKnit>0 && next.pitch>0;
+  if(!usable){
+    return {ok:false, why:'얼굴 측정값이 정상 범위를 벗어났어요. 카메라를 정면으로 보고 다시 눌러주세요.'};
+  }
   baseline=next;
-  return true;
+
+  /* 흔들림은 이제 '경고'일 뿐입니다. 시작은 시키되, 판정이 이상하면 왜 그런지 알 수 있게
+     알려줍니다. */
+  const shaky = trimmedStdev(use.mouthWidth) > next.mouthWidth*0.06 ||
+                trimmedStdev(use.yawRaw.length?use.yawRaw:use.yaw) > 0.030;
+  return {ok:true, warn: shaky ? '기준을 잡는 동안 얼굴이 조금 움직였어요. 판정이 이상하면 다시 한 번 해보세요.' : ''};
 }
 
 /* ── 눈 깜빡임 구분 ────────────────────────────────────────────────────────────
@@ -689,6 +700,8 @@ function anchorJump(getPt,S,now){
    "정면을 봐주세요"만 반복되고 영원히 시작할 수 없었습니다.
    게다가 도전 중 자세 검사는 '캘리브레이션 때의 자세 대비 변화량'으로 하므로,
    절대 각도는 애초에 필요하지도 않았습니다. 옆을 보는 극단적인 경우만 막습니다. */
+/* 이 함수는 이제 화면에 띄울 '조언'만 만듭니다. 여기서 false가 나와도 표본은 그대로
+   수집됩니다 — 안내를 하는 것과 사용자를 막는 것은 다른 일입니다. */
 const CALIB_YAW_TOL=0.22;
 function calibQuality(S, yawRaw, jump, faceSeen){
   if(!faceSeen) return {ok:false, why:'얼굴이 보이지 않아요. 화면 중앙에 얼굴을 맞춰주세요.'};
@@ -702,7 +715,7 @@ function calibQuality(S, yawRaw, jump, faceSeen){
    고개가 많이 틀어지면 어떤 보정으로도 정확히 못 잽니다. 예전에는 그런 프레임도 그냥
    점수로 환산해서 "가만히 있는데 수치가 춤추는" 현상을 만들었습니다. 이제는 그 프레임을
    측정 불가로 표시하고, 유지 시간을 깎지도 올리지도 않고 멈춥니다. */
-const YAW_TOL=0.075, PITCH_TOL=0.17, MIN_SCALE_PX=42;
+const YAW_TOL=0.075, PITCH_TOL=0.17, MIN_SCALE_PX=26;
 function poseQuality(yaw, pitch, S, jump){
   if(!(S>MIN_SCALE_PX)) return {ok:false, why:'얼굴이 너무 작아요. 카메라에 조금 더 가까이 와주세요.'};
   if(jump>JUMP_TOL_PER_SEC) return {ok:false, why:'얼굴 추적이 흔들렸어요. 잠시 그대로 있어주세요.'};
@@ -979,7 +992,7 @@ const CALIB_EXTRA_MAX=3;
 $('readyBtn').addEventListener('click', ()=>{
   if(readyTimer) return;
   $('readyBtn').disabled=true; $('rerollBtn').disabled=true;
-  startCalibration(); resetSmooth(); resetAnchors(); resetBlink();
+  startCalibration(); resetBlink();
   let n=READY_COUNTDOWN, extra=0;
   $('readyBtn').textContent = n+'초 후 시작...';
   readyTimer=setInterval(()=>{
@@ -993,16 +1006,16 @@ $('readyBtn').addEventListener('click', ()=>{
       return;                              // 표본이 모일 때까지 조금 더 기다립니다
     }
     clearInterval(readyTimer); readyTimer=null;
-    const calibrated=finishCalibration();
+    const res=finishCalibration();
     $('readyBtn').disabled=false; $('rerollBtn').disabled=false;
     $('readyBtn').textContent='준비됐어요 · 3초 후 시작';
-    if(!calibrated){
-      showCalibNote('무표정 기준을 잡지 못했어요. 얼굴이 화면 안에 다 들어오게 하고, 카메라를 정면으로 본 채 '+
-                    '표정 없이 가만히 있어주세요. 방이 어두우면 조금 더 밝게 해주세요.');
+    if(!res.ok){
+      showCalibNote(res.why);
       return;
     }
     showCalibNote('');
     startChallenge();
+    if(res.warn) setFeedback('', res.warn);
   },1000);
 });
 
@@ -1086,12 +1099,15 @@ function onResults(results){
     const jump=anchorJump(rot.get,S,now);
 
     if(calibSamples){
+      /* 예전에는 여기서 조건을 걸어 프레임을 골라 담았습니다. 그런데 그 조건이 하나라도
+         현실과 어긋나면 표본이 0개가 되어 "시작 자체가 불가능"해집니다. 실제로 그런 일이
+         두 번 있었습니다. 이제는 얼굴이 잡히고 숫자가 정상이면 무조건 담고, 자세 안내는
+         '조언'으로만 보여줍니다. 기준이 조금 흔들려도 한 판 다시 하면 되지만,
+         시작을 못 하면 아무것도 할 수 없습니다. */
       const cq=calibQuality(S,yawRaw,jump,true);
       showCalibHint(cq.ok?'ok':'warn', cq.why);
-      if(cq.ok){
-        feedCalibration({lidL,lidR,mouthWidth,browGap,riseL,riseR,yaw,pitch,browKnit,browSlant,
-          yawRaw:yawRaw, widthRaw:computeMouthWidthNorm(rot.get,S)});
-      }
+      feedCalibration({lidL,lidR,mouthWidth,browGap,riseL,riseR,yaw,pitch,browKnit,browSlant,
+        yawRaw:yawRaw, widthRaw:computeMouthWidthNorm(rot.get,S)});
     }
 
     const rawLiftL=rawCornerLift(riseL, baseline.riseL);
