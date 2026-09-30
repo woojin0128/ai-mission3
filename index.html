@@ -786,6 +786,9 @@ function pickMission(excludeId){
   return pool[Math.floor(Math.random()*pool.length)];
 }
 function renderCards(){
+  /* currentMission이 비어 있으면 이후 전부 null 참조로 터집니다. 정상 흐름에서는 goSelect가
+     먼저 채우지만, 어떤 경로로든 비어 있으면 조용히 하나를 골라 화면을 지킵니다. */
+  if(!currentMission) currentMission=pickMission();
   const wrap=$('cardsWrap'); wrap.innerHTML='';
   MISSIONS.forEach(m=>{
     const sel = m.id===currentMission.id;
@@ -983,7 +986,7 @@ $('camBtn').addEventListener('click', async ()=>{
     $('camBtn').disabled=false; $('camBtn').textContent='카메라 시작';
   }
 });
-$('rerollBtn').addEventListener('click', ()=>{ if(readyTimer) return; currentMission=pickMission(currentMission.id); showCalibNote(''); renderCards(); });
+$('rerollBtn').addEventListener('click', ()=>{ if(readyTimer) return; currentMission=pickMission(currentMission&&currentMission.id); showCalibNote(''); renderCards(); });
 
 /* 준비 단계: 고정 3초 뒤 무조건 판정하던 것을, 좋은 표본이 모일 때까지 최대 3초 더
    기다리도록 바꿨습니다. 조명이 어둡거나 자세를 잡는 데 시간이 걸리는 사용자가
@@ -1020,6 +1023,7 @@ $('readyBtn').addEventListener('click', ()=>{
 });
 
 function startChallenge(){
+  if(!currentMission) currentMission=pickMission();
   holdAccum=0; roundState={}; bestSnapshot=null; bestScore=-1; challengeDone=false;
   lastFrameT=null; resetBlink(); resetAnchors();
   /* 필터를 완전히 비우면 도전 첫 2~3프레임은 표본이 모자라 수치가 불안정합니다.
@@ -1434,7 +1438,9 @@ function bumpAutoReturn(){
 
 $('retryBtn').addEventListener('click', ()=>{
   clearInterval(autoReturnTimer); autoReturnActive=false;
-  currentMission = lastResultMission;
+  // 직전 결과가 없으면(비정상 경로) 미션을 새로 뽑아 select 화면을 정상 상태로 만듭니다.
+  currentMission = lastResultMission || pickMission();
+  showCalibNote('');
   renderCards();
   setStep('select');
 });
