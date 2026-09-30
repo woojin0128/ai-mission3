@@ -53,17 +53,6 @@ section.step.active{display:block;}
 .select-actions{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px;}
 .timer-note{color:var(--muted);font-size:13px;}
 .privacy-note{color:var(--muted);font-size:12px;border-top:1px solid var(--border);padding-top:14px;}
-.optionbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
-.optionbar .lbl{font-size:12px;color:var(--muted);font-weight:700;}
-.diff-pill{font-size:12px;font-weight:700;padding:6px 13px;border-radius:20px;background:var(--panel2);
-  color:var(--muted);border:1px solid var(--border);cursor:pointer;}
-.diff-pill[aria-pressed="true"]{background:var(--pink);color:#1a0410;border-color:var(--pink);}
-.diff-pill:focus-visible{outline:2px solid var(--pink);outline-offset:2px;}
-.statbar{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:16px;}
-.statbar b{color:var(--text);font-size:15px;font-weight:800;display:block;line-height:1.2;}
-.icon-btn{background:none;border:none;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;padding:6px 8px;border-radius:8px;}
-.icon-btn:hover{color:var(--text);}
-.icon-btn:focus-visible{outline:2px solid var(--pink);outline-offset:2px;}
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:0.001ms !important;animation-iteration-count:1 !important;transition-duration:0.001ms !important;}
 }
@@ -172,18 +161,12 @@ table.result-table td b{font-weight:800;}
 
   <section class="step" id="step-select">
     <div class="tagline">얼굴로 모순을 만들어 AI를 헷갈리게 하라</div>
-    <div class="title">도전할 미션을 고르세요</div>
-    <div class="optionbar">
-      <span class="lbl">난이도</span>
-      <div id="diffWrap" role="group" aria-label="난이도 선택" style="display:flex;gap:6px;"></div>
-      <button class="icon-btn" id="soundBtn" aria-pressed="true" title="소리 켜기/끄기">🔔 소리 켜짐</button>
-    </div>
-    <div class="statbar" id="statBar" aria-live="off"></div>
+    <div class="title">도전할 미션을 선택하세요</div>
     <div class="cards" id="cardsWrap"></div>
     <div class="select-actions">
-      <button class="secondary-btn" id="rerollBtn">랜덤으로 고르기</button>
+      <button class="secondary-btn" id="rerollBtn">다시 뽑기</button>
       <button class="primary-btn" id="readyBtn">준비됐어요 · 3초 후 시작</button>
-      <span class="timer-note" id="timerNote">제한 시간 20초</span>
+      <span class="timer-note">제한 시간 20초</span>
     </div>
     <p id="calibNote" role="status" aria-live="polite" style="color:var(--bad);font-size:13px;margin:0 0 14px;display:none;"></p>
     <div class="privacy-note">카메라 영상은 이 기기의 화면에서만 보이며, 서버로 전송되거나 저장되지 않습니다.</div>
@@ -283,7 +266,6 @@ table.result-table td b{font-weight:800;}
         <div class="tip-card"><h4>AI는 이렇게 판단해요</h4><p id="explainText"></p></div>
         <div class="result-actions">
           <button class="primary-btn" id="retryBtn">다시 도전</button>
-          <button class="secondary-btn" id="shareBtn">결과 저장·공유</button>
           <button class="secondary-btn" id="restartBtn">처음으로</button>
         </div>
         <div class="auto-note" id="autoNote">10초 후 자동으로 처음 화면으로 돌아갑니다</div>
@@ -295,41 +277,23 @@ table.result-table td b{font-weight:800;}
 <script>
 const READY_COUNTDOWN = 3, AUTO_RETURN = 10;
 
-/* ── 난이도 ────────────────────────────────────────────────────────────────────
-   같은 기준을 모두에게 강요하면 누군가에게는 불가능하고 누군가에게는 시시합니다.
-   achieve = 만들어내야 하는 지표(>=)의 기준 보정, suppress = 억눌러야 하는 지표(<=)의 여유.
-   '보통'이 지금까지 검증한 기준선이고, 쉬움/어려움은 거기서 좌우로 움직입니다. */
-const DIFFICULTIES={
-  easy:   {label:'쉬움',   hold:2.5, time:25, achieve:-0.12, suppress:+0.12, teeth:+0.06},
-  normal: {label:'보통',   hold:3.0, time:20, achieve: 0.00, suppress: 0.00, teeth: 0.00},
-  hard:   {label:'어려움', hold:4.0, time:18, achieve:+0.10, suppress:-0.08, teeth:-0.03}
-};
-const DIFF_ORDER=['easy','normal','hard'];
-let difficulty='normal';
-function diff(){ return DIFFICULTIES[difficulty]||DIFFICULTIES.normal; }
-function holdSeconds(){ return diff().hold; }
-function timeLimit(){ return diff().time; }
-/* 실제 판정에 쓰이는 기준값. 지표 정의에는 '보통' 기준만 적고 난이도는 여기서 한 번만
-   적용합니다. 표시(막대·힌트·결과표)와 판정이 서로 달라지는 사고를 구조적으로 막습니다. */
-function effThreshold(mt){
-  const d=diff();
-  if(mt.key==='teeth') return clamp(mt.threshold+d.teeth, 0.03, 0.40);
-  if(mt.cmp==='>=')    return clamp(mt.threshold+d.achieve, 0.15, 0.95);
-  return clamp(mt.threshold+d.suppress, 0.08, 0.80);
-}
+/* 판정 기준은 하나로 고정합니다(전 구간 검증된 값). */
+const HOLD_SECONDS = 3.0, TIME_LIMIT = 20.0;
+function holdSeconds(){ return HOLD_SECONDS; }
+function timeLimit(){ return TIME_LIMIT; }
+function effThreshold(mt){ return mt.threshold; }
 function fmtThreshold(mt){
-  const t=effThreshold(mt);
-  return mt.isPercent ? Math.round(t*100)+'%' : String(Math.round(t*100)/100);
+  return mt.isPercent ? Math.round(mt.threshold*100)+'%' : String(Math.round(mt.threshold*100)/100);
 }
-/* 카드 조건 문구를 지표 정의에서 자동으로 만듭니다. 손으로 적어둔 문구는 실제 기준과
-   어긋날 수 있고, 난이도가 생기면 반드시 어긋납니다. */
+/* 카드 조건 문구는 지표 정의에서 자동으로 만듭니다. 손으로 적은 문구는 실제 기준과
+   어긋날 수 있고, 어긋나면 사용자가 통과 조건을 잘못 알게 됩니다. */
 function missionCond(m){
   return m.metrics.filter(x=>!x.reference).map(x=>{
     const name=x.label.split(' · ')[0];
     return name+' '+fmtThreshold(x)+(x.cmp==='>='?' 이상':' 이하');
   }).join(' + ')+' · '+holdSeconds().toFixed(1)+'초 유지';
 }
-const PASS_STREAK_NEEDED = 2;
+const DEBOUNCE_SECONDS = 0.07;   // 약 2프레임(30fps)에 해당하는 시간
 
 /* ── One-Euro 필터 ─────────────────────────────────────────────────────────────
    가만히 있을 때는 떨림을 강하게 눌러 주고, 표정이 실제로 바뀔 때는 거의 지연 없이 따라갑니다.
@@ -394,9 +358,28 @@ function rotatePoint(p, ang, ox, oy){
 }
 // builds a point-getter that corrects for head tilt (roll) around the eye-line midpoint,
 // so a tilted head doesn't skew EAR/MAR/width readings — this is the main "감지 정확도" upgrade
+/* 기울기를 눈꼬리 두 점만으로 재면 그 두 점의 떨림이 각도에 그대로 실리고, 각도가 흔들리면
+   회전 보정을 거친 모든 수치가 함께 흔들립니다. 좌우 대칭 쌍 여러 개의 방향 벡터를 합산해
+   추정하면(벡터 평균 = 최소자승 방향) 개별 점의 잡음이 서로 상쇄됩니다. */
+const ROLL_PAIRS=[[33,263],[133,362],[61,291],[70,300],[234,454],[116,345],[58,288]];
+function estimateRoll(lm,w,h){
+  let sx=0, sy=0;
+  for(let k=0;k<ROLL_PAIRS.length;k++){
+    const a=ROLL_PAIRS[k][0], b=ROLL_PAIRS[k][1];
+    if(lm.length<=a || lm.length<=b) continue;
+    const pa=pt(lm,a,w,h), pb=pt(lm,b,w,h);
+    const dx=pb.x-pa.x, dy=pb.y-pa.y;
+    if(!(Math.hypot(dx,dy)>1)) continue;
+    /* 벡터를 길이 그대로 더합니다. 같은 픽셀 흔들림이라도 두 점 사이가 짧을수록 각도 오차가
+       크므로, 길이로 가중하는 것이 곧 최소자승 추정입니다. 길이를 1로 맞춰 더하면 오히려
+       가장 부정확한 짧은 쌍에 가장 큰 발언권을 주게 됩니다. */
+    sx+=dx; sy+=dy;
+  }
+  return (sx||sy) ? Math.atan2(sy,sx) : 0;
+}
 function makeRotatedGetter(lm,w,h){
   const eL=pt(lm,EYE_OUTER_L,w,h), eR=pt(lm,EYE_OUTER_R,w,h);
-  const ang=Math.atan2(eR.y-eL.y, eR.x-eL.x);
+  const ang=estimateRoll(lm,w,h);
   const ox=(eL.x+eR.x)/2, oy=(eL.y+eR.y)/2;
   return { get:(i)=>rotatePoint(pt(lm,i,w,h), -ang, ox, oy), oy:oy, rollDeg: ang*180/Math.PI };
 }
@@ -576,8 +559,12 @@ function teethWhiteRatio(video,lm,w,h,skinV){
     if(data[i+3]<10) continue; total++;
     const r=data[i],g=data[i+1],b=data[i+2];
     const max=Math.max(r,g,b),min=Math.min(r,g,b);
-    const v=max/255, s=max===0?0:(max-min)/max;
-    if(v>vCut && s<0.30) white++;
+    const v=max/255, sat=max===0?0:(max-min)/max;
+    /* 치아는 무채색에 가깝고, 입술·잇몸·혀는 붉은기가 강합니다. 밝기만 보면 입술에 맺힌
+       하이라이트가 치아로 잡혀 억울하게 걸리는 일이 생기므로, 붉은 쪽으로 치우친 픽셀은
+       제외합니다(빨강이 파랑보다 뚜렷하게 크면 피부·입술 계열). */
+    const reddish = (r-b) > 34;
+    if(v>vCut && sat<0.30 && !reddish) white++;
   }
   /* 이 잘라낸 이미지는 화면에 절대 그려지지 않습니다. 메모리에서 수치만 읽고 바로 버립니다.
      표본이 너무 적으면(입을 거의 다문 상태) 픽셀 몇 개의 노이즈가 큰 비율로 부풀려져
@@ -592,6 +579,13 @@ const filters={};
 FILTER_KEYS.forEach(k=>filters[k]=makeFilter());
 function pushSmooth(key,val,dt){ return filterPush(filters[key], val, dt); }
 function resetSmooth(){ FILTER_KEYS.forEach(k=>filters[k]=makeFilter()); }
+/* 기준값이 있는 채널은 그 값으로 필터를 채워 시작합니다. */
+function primeFilters(){
+  FILTER_KEYS.forEach(k=>{
+    const v=baseline[k];
+    if(typeof v==='number' && isFinite(v)){ filters[k].x=v; filters[k].dx=0; filters[k].med=[v,v,v]; }
+  });
+}
 
 let baseline={lidL:0.055,lidR:0.055,mouthWidth:0.40,browGap:0.075,riseL:-0.055,riseR:-0.055,yaw:0.5,pitch:0.30};
 let calibSamples=null;
@@ -633,8 +627,12 @@ function finishCalibration(){
   const sane = finiteOk && next.lidL>0.005 && next.lidR>0.005 &&
                next.mouthWidth>0.10 && next.browGap>0.005 && next.pitch>0.02;
   // 준비 시간 동안 얼굴이 심하게 움직였다면 그 평균은 "무표정 기준"이 아닙니다.
+  /* 준비 시간 동안 표정이 흔들렸다면 그 평균은 '무표정'이 아닙니다. 입 크기와 고개 방향뿐
+     아니라 눈과 입꼬리까지 확인해, 눈을 깜빡이거나 웃다 만 상태로 잡힌 기준을 걸러냅니다. */
   const steady = stdev(cs.widthRaw.length?cs.widthRaw:cs.mouthWidth) < next.mouthWidth*0.22 &&
-                 stdev(cs.yawRaw.length?cs.yawRaw:cs.yaw) < 0.05;
+                 stdev(cs.yawRaw.length?cs.yawRaw:cs.yaw) < 0.05 &&
+                 stdev(cs.lidL) < next.lidL*0.30 && stdev(cs.lidR) < next.lidR*0.30 &&
+                 stdev(cs.riseL) < 0.012 && stdev(cs.riseR) < 0.012;
   if(!sane || !steady) return false;
   baseline=next;
   return true;
@@ -769,7 +767,7 @@ const MISSIONS=[
 let step='idle';
 let faceMesh=null, processing=false, lastFaceTime=0;
 let currentMission=null;
-let holdAccum=0, lastHoldTick=0, roundState={}, bestSnapshot=null, bestScore=-1, timeLimitStart=null, challengeDone=false;
+let holdAccum=0, roundState={}, bestSnapshot=null, bestScore=-1, timeLimitStart=null, challengeDone=false;
 /* 도전 타이머 루프 핸들은 하나만 둡니다. 예전에는 변수가 두 개(timeLeftAnim / challengeAnimId)여서
    '다시 도전'을 누르면 이전 루프가 취소되지 않고 남아 루프가 둘 돌 수 있었습니다. */
 let challengeAnimId=null;
@@ -808,99 +806,6 @@ function renderCards(){
     wrap.appendChild(card);
   });
 }
-/* ── 저장되는 설정과 기록 ──────────────────────────────────────────────────────
-   시크릿 창이나 저장이 차단된 환경에서는 localStorage 접근 자체가 예외를 던집니다.
-   기록은 있으면 좋은 것이지 필수는 아니므로, 실패해도 게임은 그대로 동작해야 합니다. */
-const STORE_KEY='aidodge.m3.v1';
-let stats={plays:0, wins:0, streak:0, best:0};
-let soundOn=true;
-function loadStore(){
-  try{
-    const raw=localStorage.getItem(STORE_KEY);
-    if(!raw) return;
-    const o=JSON.parse(raw);
-    if(o && typeof o==='object'){
-      ['plays','wins','streak','best'].forEach(k=>{ if(typeof o[k]==='number'&&isFinite(o[k])&&o[k]>=0) stats[k]=Math.floor(o[k]); });
-      if(typeof o.soundOn==='boolean') soundOn=o.soundOn;
-      if(typeof o.difficulty==='string' && DIFFICULTIES[o.difficulty]) difficulty=o.difficulty;
-    }
-  }catch(e){ /* 저장소를 못 읽는 환경 — 기본값으로 계속합니다 */ }
-}
-function saveStore(){
-  try{ localStorage.setItem(STORE_KEY, JSON.stringify(Object.assign({}, stats, {soundOn, difficulty}))); }
-  catch(e){ /* 저장 실패는 기능에 영향을 주지 않습니다 */ }
-}
-function renderStats(){
-  const el=$('statBar'); if(!el) return;
-  const rate = stats.plays ? Math.round(stats.wins/stats.plays*100) : 0;
-  el.innerHTML =
-    '<div><b>'+stats.plays+'</b>도전</div>'+
-    '<div><b>'+stats.wins+'</b>성공</div>'+
-    '<div><b>'+rate+'%</b>성공률</div>'+
-    '<div><b>'+stats.streak+'</b>연속 성공</div>'+
-    '<div><b>'+stats.best+'</b>최고 연속</div>';
-}
-function recordResult(ok){
-  stats.plays++;
-  if(ok){ stats.wins++; stats.streak++; if(stats.streak>stats.best) stats.best=stats.streak; }
-  else stats.streak=0;
-  saveStore(); renderStats();
-}
-
-/* ── 소리 ──────────────────────────────────────────────────────────────────────
-   외부 음원 파일 없이 WebAudio로 직접 만듭니다. 단일 파일로 배포되는 앱이라
-   네트워크 의존을 늘리지 않는 것이 중요합니다. */
-let audioCtx=null;
-function beep(freq, durMs, type, gainPeak){
-  if(!soundOn) return;
-  try{
-    if(!audioCtx){
-      const AC=window.AudioContext||window.webkitAudioContext;
-      if(!AC) return;
-      audioCtx=new AC();
-    }
-    if(audioCtx.state==='suspended') audioCtx.resume();
-    const t0=audioCtx.currentTime;
-    const osc=audioCtx.createOscillator(), g=audioCtx.createGain();
-    osc.type=type||'sine'; osc.frequency.setValueAtTime(freq,t0);
-    g.gain.setValueAtTime(0.0001,t0);
-    g.gain.exponentialRampToValueAtTime(gainPeak||0.10, t0+0.012);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0+durMs/1000);
-    osc.connect(g); g.connect(audioCtx.destination);
-    osc.start(t0); osc.stop(t0+durMs/1000+0.02);
-  }catch(e){ /* 소리는 부가 기능이므로 실패해도 무시합니다 */ }
-}
-function soundSuccess(){ beep(660,110,'sine',0.10); setTimeout(()=>beep(880,160,'sine',0.10),110); }
-function soundFail(){ beep(300,180,'triangle',0.09); setTimeout(()=>beep(200,240,'triangle',0.08),150); }
-function soundTick(){ beep(520,55,'sine',0.05); }
-function renderSoundBtn(){
-  const b=$('soundBtn'); if(!b) return;
-  b.setAttribute('aria-pressed', soundOn?'true':'false');
-  b.textContent = soundOn ? '🔔 소리 켜짐' : '🔕 소리 꺼짐';
-}
-
-/* ── 난이도 UI ─────────────────────────────────────────────────────────────── */
-function renderDiffPills(){
-  const wrap=$('diffWrap'); if(!wrap) return;
-  wrap.innerHTML='';
-  DIFF_ORDER.forEach(key=>{
-    const b=document.createElement('button');
-    b.className='diff-pill'; b.type='button';
-    b.textContent=DIFFICULTIES[key].label;
-    b.setAttribute('aria-pressed', key===difficulty?'true':'false');
-    b.addEventListener('click', ()=>{
-      if(readyTimer) return;
-      difficulty=key; saveStore();
-      renderDiffPills(); renderCards(); updateTimerNote(); showCalibNote('');
-    });
-    wrap.appendChild(b);
-  });
-}
-function updateTimerNote(){
-  const el=$('timerNote');
-  if(el) el.textContent='제한 시간 '+Math.round(timeLimit())+'초';
-}
-
 /* 안내 문구는 두 곳(사이드 패널·카메라 위 오버레이)에 나타나므로 반드시 한 곳에서만
    갱신합니다. 각각 따로 쓰면 반드시 어긋납니다. */
 function setFeedback(kind, msg){
@@ -1027,6 +932,9 @@ $('camBtn').addEventListener('click', async ()=>{
      ideal로 요청하고, 그래도 실패하면 조건 없이 한 번 더 시도합니다.
      facingMode:'user'가 없으면 휴대폰에서 후면 카메라가 열릴 수 있습니다. */
   const attempts=[
+    /* 입력이 선명할수록 랜드마크, 특히 홍채 지름이 정확해집니다. 추론은 어차피 30fps로
+       제한하므로 해상도를 올려도 연산량이 비례해 늘지 않습니다. 못 맞추는 기기는 아래로 내려갑니다. */
+    {video:{facingMode:'user', width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30,max:60}}, audio:false},
     {video:{facingMode:'user', width:{ideal:640}, height:{ideal:480}, frameRate:{ideal:30,max:60}}, audio:false},
     {video:{facingMode:'user'}, audio:false},
     {video:true, audio:false}
@@ -1080,12 +988,6 @@ $('camBtn').addEventListener('click', async ()=>{
     $('camBtn').disabled=false; $('camBtn').textContent='카메라 시작';
   }
 });
-$('soundBtn').addEventListener('click', ()=>{
-  soundOn=!soundOn; saveStore(); renderSoundBtn();
-  if(soundOn) beep(700,90,'sine',0.08);   // 켤 때는 실제로 들려줘야 확인이 됩니다
-});
-loadStore(); renderStats(); renderSoundBtn(); renderDiffPills(); updateTimerNote();
-
 $('rerollBtn').addEventListener('click', ()=>{ if(readyTimer) return; currentMission=pickMission(currentMission.id); showCalibNote(''); renderCards(); });
 
 /* 준비 단계: 고정 3초 뒤 무조건 판정하던 것을, 좋은 표본이 모일 때까지 최대 3초 더
@@ -1123,11 +1025,12 @@ $('readyBtn').addEventListener('click', ()=>{
 });
 
 function startChallenge(){
-  holdAccum=0; lastHoldTick=0; roundState={}; bestSnapshot=null; bestScore=-1; challengeDone=false;
+  holdAccum=0; roundState={}; bestSnapshot=null; bestScore=-1; challengeDone=false;
   lastFrameT=null; resetBlink(); resetAnchors();
-  // 직전 상태(캘리브레이션 중의 무표정)가 스무딩 버퍼에 남아 도전 초반 몇 프레임의
-  // 수치를 왜곡하지 않도록, 도전 시작 시점에 필터를 비우고 새로 시작합니다.
+  /* 필터를 완전히 비우면 도전 첫 2~3프레임은 표본이 모자라 수치가 불안정합니다.
+     방금 측정한 무표정 기준값으로 미리 채워두면(예열) 첫 프레임부터 정상 동작합니다. */
   resetSmooth();
+  primeFilters();
   timeLimitStart=performance.now()/1000;
   $('challengeMissionTitle').textContent=currentMission.label;
   $('mouthZoomWrap').style.display = currentMission.id==='no_teeth' ? 'flex' : 'none';
@@ -1136,7 +1039,6 @@ function startChallenge(){
   setFeedback('', '얼굴을 화면 중앙에 맞춰주세요');
   $('holdFill').style.width='0%';
   $('holdLabel').textContent='0.0 / '+holdSeconds().toFixed(1)+'s';
-  $('timeLeftNum').textContent=String(Math.round(timeLimit()));
   buildMetricRows();
   setStep('challenge');
   cancelAnimationFrame(challengeAnimId);
@@ -1185,6 +1087,7 @@ function onResults(results){
     const holdLidFilter = blinking && blinkWithinWindow(now);
     const lidL = holdLidFilter ? filterValue('lidL', rawLidL) : pushSmooth('lidL',rawLidL,dt);
     const lidR = holdLidFilter ? filterValue('lidR', rawLidR) : pushSmooth('lidR',rawLidR,dt);
+
     const mar=pushSmooth('mar',computeMAR(rot.get,S),dt);
     const mouthWidth=pushSmooth('mouthWidth',computeMouthWidthNorm(rot.get,S),dt);
     const browGap=pushSmooth('browGap',computeBrowGap(rot.get,S),dt);
@@ -1407,14 +1310,18 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
       if(mt.reference) return;
 
       // 프레임 단위 판정 후, 순간적인 검출 노이즈로 판정이 튀는 것을 막기 위해 디바운스합니다.
+      /* 판정이 순간 노이즈로 튀지 않도록 디바운스합니다. 예전에는 '연속 N프레임'으로 셌는데,
+         그러면 30fps 기기에서는 66ms, 15fps 기기에서는 133ms가 되어 기기마다 판정 반응이
+         달라졌습니다. 이제 경과 시간으로 세므로 어떤 기기에서도 동일하게 동작합니다. */
       const th=effThreshold(mt);
       const rawPass = mt.cmp==='>=' ? val>=th : val<=th;
       const spKey=mt.key+'_sp', sfKey=mt.key+'_sf', stKey=mt.key+'_stable';
-      if(rawPass){ roundState[spKey]=(roundState[spKey]||0)+1; roundState[sfKey]=0; }
-      else { roundState[sfKey]=(roundState[sfKey]||0)+1; roundState[spKey]=0; }
+      const step=clamp(dt||0, 0, 0.25);
+      if(rawPass){ roundState[spKey]=(roundState[spKey]||0)+step; roundState[sfKey]=0; }
+      else { roundState[sfKey]=(roundState[sfKey]||0)+step; roundState[spKey]=0; }
       if(roundState[stKey]===undefined) roundState[stKey]=rawPass;
-      if(roundState[spKey]>=PASS_STREAK_NEEDED) roundState[stKey]=true;
-      if(roundState[sfKey]>=PASS_STREAK_NEEDED) roundState[stKey]=false;
+      if(roundState[spKey]>=DEBOUNCE_SECONDS) roundState[stKey]=true;
+      if(roundState[sfKey]>=DEBOUNCE_SECONDS) roundState[stKey]=false;
       const pass = roundState[stKey];
       if(badgeEl){ badgeEl.textContent=pass?'통과':'걸림'; badgeEl.className='pass-badge '+(pass?'ok':'bad'); }
       if(fillEl){
@@ -1444,10 +1351,6 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
   }
   const HT=holdSeconds();
   const hold=holdAccum;
-  // 유지 게이지가 1초 단위로 올라갈 때만 짧게 알립니다(화면을 안 봐도 진행이 느껴지도록).
-  const tickStep=Math.floor(hold);
-  if(tickStep>lastHoldTick && tickStep>0 && hold<HT){ soundTick(); }
-  lastHoldTick=tickStep;
   $('holdFill').style.width=(clamp(hold/HT,0,1)*100)+'%';
   $('holdLabel').textContent=hold.toFixed(1)+' / '+HT.toFixed(1)+'s';
 
@@ -1507,8 +1410,6 @@ function finishChallenge(ok){
 
   $('resultTitle').textContent = ok ? 'AI를 속였어요!' : '들켰어요!';
   $('resultTitle').className = 'result-title ' + (ok?'ok':'bad');
-  recordResult(ok);
-  if(ok) soundSuccess(); else soundFail();
   if(ok){
     $('resultDesc').innerHTML = '<b>'+currentMission.label+'</b> 미션을 '+holdSeconds().toFixed(1)+'초 동안 완벽하게 유지했어요. AI가 표정을 헷갈려 했습니다.';
     $('tipText').textContent = '완벽했어요! 다른 미션에도 도전해보세요.';
@@ -1551,128 +1452,6 @@ function bumpAutoReturn(){
 ['pointerdown','keydown','wheel','touchstart'].forEach(ev=>{
   document.addEventListener(ev, bumpAutoReturn, {passive:true});
 });
-
-/* ── 결과 공유 카드 ────────────────────────────────────────────────────────────
-   결과를 1080x1080 이미지로 그려 저장·공유합니다. 외부 폰트나 이미지를 쓰지 않아
-   오프라인에서도 동일하게 만들어집니다. 카메라 영상은 절대 넣지 않습니다. */
-function buildShareCanvas(){
-  const W=1080,H=1080;
-  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
-  const c=cv.getContext('2d');
-  if(!c) return null;
-  const ok=lastResultOk;
-  c.fillStyle='#0b0b10'; c.fillRect(0,0,W,H);
-  // 은은한 상단 글로우
-  const g=c.createRadialGradient(W/2,120,40,W/2,120,760);
-  g.addColorStop(0, ok?'rgba(61,220,132,0.20)':'rgba(255,79,156,0.20)');
-  g.addColorStop(1,'rgba(0,0,0,0)');
-  c.fillStyle=g; c.fillRect(0,0,W,460);
-
-  const font=(sz,wt)=>String(wt||700)+' '+sz+'px -apple-system, BlinkMacSystemFont, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
-  c.textAlign='center';
-  c.fillStyle='#8b8fa3'; c.font=font(30,700);
-  c.fillText('AI를 속여라 · 미션 3 · 안면 모순', W/2, 110);
-
-  c.fillStyle = ok ? '#3ddc84' : '#ff4f9c';
-  c.font=font(96,900);
-  c.fillText(ok?'AI를 속였다':'AI에게 들켰다', W/2, 250);
-
-  c.fillStyle='#eef0f5'; c.font=font(46,800);
-  c.fillText((lastResultMission?lastResultMission.label:'-'), W/2, 350);
-  c.fillStyle='#8b8fa3'; c.font=font(30,700);
-  c.fillText('난이도 '+diff().label+' · '+holdSeconds().toFixed(1)+'초 유지', W/2, 400);
-
-  // 판정 수치 표
-  const rows=[];
-  if(lastResultMission){
-    lastResultMission.metrics.filter(m=>!m.reference).forEach(mt=>{
-      const val=(bestSnapshot&&typeof bestSnapshot[mt.key]==='number')?bestSnapshot[mt.key]:0;
-      const th=effThreshold(mt);
-      const pass = mt.cmp==='>=' ? val>=th : val<=th;
-      rows.push({
-        name: mt.label.split(' · ')[0],
-        val: mt.isPercent ? Math.round(val*100)+'%' : val.toFixed(2),
-        th: (mt.cmp==='>='?'≥ ':'≤ ')+fmtThreshold(mt),
-        pass
-      });
-    });
-  }
-  /* 값·기준·판정을 각각 오른쪽 정렬된 전용 열에 배치합니다. 예전에는 값과 기준이
-     같은 구역을 공유해서 값이 길어지면 글자가 겹쳤습니다. */
-  const COL_VAL=610, COL_TH=845, COL_VERDICT=965;
-  let y = rows.length>=3 ? 490 : 540;
-  rows.forEach(r=>{
-    c.fillStyle='#15151d'; c.fillRect(90,y,900,86);
-    c.strokeStyle='#2a2a36'; c.lineWidth=2; c.strokeRect(90,y,900,86);
-    c.textAlign='left';
-    c.fillStyle='#eef0f5'; c.font=font(32,700); c.fillText(r.name,120,y+55);
-    c.textAlign='right';
-    c.fillStyle='#eef0f5'; c.font=font(34,800); c.fillText(r.val,COL_VAL,y+55);
-    c.fillStyle='#8b8fa3'; c.font=font(26,600); c.fillText('기준 '+r.th,COL_TH,y+55);
-    c.fillStyle=r.pass?'#3ddc84':'#ff5c5c'; c.font=font(32,800);
-    c.fillText(r.pass?'통과':'걸림',COL_VERDICT,y+55);
-    y+=102;
-  });
-
-  // 기록 요약
-  const rate = stats.plays ? Math.round(stats.wins/stats.plays*100) : 0;
-  c.textAlign='center';
-  c.fillStyle='#8b8fa3'; c.font=font(30,700);
-  c.fillText(stats.plays+'번 도전 · '+stats.wins+'번 성공 · 성공률 '+rate+'% · 최고 연속 '+stats.best, W/2, Math.min(y+62, H-150));
-  c.fillStyle='#4b4b5a'; c.font=font(26,600);
-  c.fillText('얼굴로 모순을 만들어 AI를 헷갈리게 하라', W/2, H-70);
-  return cv;
-}
-function shareSummaryText(){
-  const rate = stats.plays ? Math.round(stats.wins/stats.plays*100) : 0;
-  return 'AI를 속여라 · 미션 3 — '+(lastResultMission?lastResultMission.label:'')+
-         ' ('+diff().label+') '+(lastResultOk?'성공!':'실패')+
-         ' / 성공률 '+rate+'% · 최고 연속 '+stats.best;
-}
-function canvasToBlob(cv){
-  return new Promise(res=>{
-    if(cv.toBlob) cv.toBlob(b=>res(b),'image/png');
-    else res(null);
-  });
-}
-async function shareResult(){
-  const btn=$('shareBtn');
-  const restore=(msg)=>{ btn.textContent=msg||'결과 저장·공유'; };
-  btn.disabled=true; btn.textContent='이미지 만드는 중...';
-  let cv=null;
-  try{ cv=buildShareCanvas(); }catch(e){ cv=null; }
-  if(!cv){ btn.disabled=false; restore('이미지를 만들 수 없어요'); return; }
-  const blob=await canvasToBlob(cv);
-  const fname='ai-dodge-mission3.png';
-  // 1) 파일 공유를 지원하면 시스템 공유 시트로 (모바일에서 가장 자연스러운 경로)
-  try{
-    if(blob && navigator.canShare && navigator.share){
-      const file=new File([blob],fname,{type:'image/png'});
-      if(navigator.canShare({files:[file]})){
-        await navigator.share({files:[file], text:shareSummaryText()});
-        btn.disabled=false; restore(); return;
-      }
-    }
-  }catch(e){
-    // 사용자가 공유를 취소한 경우도 여기로 옵니다 — 오류로 취급하지 않습니다
-    if(e && e.name==='AbortError'){ btn.disabled=false; restore(); return; }
-  }
-  // 2) 아니면 PNG로 내려받기
-  try{
-    const url=blob?URL.createObjectURL(blob):cv.toDataURL('image/png');
-    const a=document.createElement('a');
-    a.href=url; a.download=fname;
-    document.body.appendChild(a); a.click(); a.remove();
-    if(blob) setTimeout(()=>URL.revokeObjectURL(url),10000);
-    try{ if(navigator.clipboard&&navigator.clipboard.writeText) await navigator.clipboard.writeText(shareSummaryText()); }catch(e){}
-    btn.disabled=false; restore('저장했어요!');
-    setTimeout(()=>restore(),2200);
-  }catch(e){
-    btn.disabled=false; restore('저장에 실패했어요');
-    setTimeout(()=>restore(),2200);
-  }
-}
-$('shareBtn').addEventListener('click', shareResult);
 
 $('retryBtn').addEventListener('click', ()=>{
   clearInterval(autoReturnTimer); autoReturnActive=false;
