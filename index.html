@@ -85,9 +85,6 @@ section.step.active{display:block;}
 .cam-feedback.ok{border-color:var(--good);color:#bdf5d6;}
 .cam-feedback.bad{border-color:var(--bad);color:#ffd4d4;}
 @media (max-width:720px){ .cam-feedback{display:block;} }
-.mouthzoom{position:absolute;top:14px;right:50px;background:rgba(0,0,0,0.6);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:10px;color:var(--muted);text-align:center;min-width:92px;}
-.mouthzoom-bar{width:100%;height:10px;border-radius:5px;background:#2a2a36;overflow:hidden;margin-bottom:5px;}
-.mouthzoom-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,#3ddc84,#ffd166,#ff5c5c);width:0%;transition:width .08s linear;}
 .side{flex:1 1 300px;min-width:260px;}
 .ring-wrap{display:flex;align-items:center;gap:16px;margin-bottom:16px;}
 .ring{position:relative;width:100px;height:100px;flex:0 0 auto;}
@@ -200,14 +197,6 @@ table.result-table td b{font-weight:800;}
           <line x1="150" y1="130" x2="145" y2="165" stroke="#3a3a48" stroke-width="2"/>
           <path id="mouth" d="M115,195 Q150,195 185,195" fill="none" stroke="url(#lipGrad)" stroke-width="4" stroke-linecap="round"/>
           <path id="tongue" d="M0,0" fill="#c9436b" opacity="0"/>
-          <g id="teethGroup" opacity="0">
-            <rect id="teeth0" x="0" y="0" width="0" height="0" rx="1.1" fill="#f6f6fa"/>
-            <rect id="teeth1" x="0" y="0" width="0" height="0" rx="1.1" fill="#f6f6fa"/>
-            <rect id="teeth2" x="0" y="0" width="0" height="0" rx="1.1" fill="#f6f6fa"/>
-            <rect id="teeth3" x="0" y="0" width="0" height="0" rx="1.1" fill="#f6f6fa"/>
-            <rect id="teeth4" x="0" y="0" width="0" height="0" rx="1.1" fill="#f6f6fa"/>
-            <rect id="teeth5" x="0" y="0" width="0" height="0" rx="1.1" fill="#f6f6fa"/>
-          </g>
           <path id="mouthOutline" d="M115,195 Q150,195 185,195" fill="none" stroke="url(#lipGrad)" stroke-width="3.5" stroke-linecap="round"/>
           <path id="lipShine" d="M115,195 Q150,195 185,195" fill="none" stroke="#ffd6ea" stroke-width="1" stroke-linecap="round" opacity="0.3"/>
           <circle id="dimpleL" cx="115" cy="195" r="2" fill="#e63a86" opacity="0"/>
@@ -223,10 +212,6 @@ table.result-table td b{font-weight:800;}
         <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
         <div class="cam-feedback" id="camFeedback" aria-hidden="true"></div>
         <div class="track-status" id="trackStatus"><span class="track-dot"></span><span>카메라를 켜면 추적을 시작합니다</span></div>
-        <div class="mouthzoom" id="mouthZoomWrap" style="display:none;">
-          <div class="mouthzoom-bar"><div class="mouthzoom-fill" id="mouthZoomFill"></div></div>
-          <span id="mouthZoomLabel">치아 밝기 감지 0%</span>
-        </div>
       </div>
       <div class="side">
         <div class="ring-wrap">
@@ -329,14 +314,15 @@ const EYE_R_OUT=263, EYE_R_IN=362;
 const EYE_OUTER_L=33, EYE_OUTER_R=263; // used to measure head roll (tilt) so metrics stay accurate off-axis
 const MOUTH_L=61, MOUTH_R=291, MOUTH_TOP=13, MOUTH_BOT=14;
 const MOUTH_MID_L_TOP=82, MOUTH_MID_L_BOT=87, MOUTH_MID_R_TOP=312, MOUTH_MID_R_BOT=317; // secondary vertical pairs for a sturdier mouth-open reading
-const MOUTH_RING=[78,191,80,81,82,13,312,311,310,415,308,324,318,402,317,14,87,178,88,95];
 /* 한 점만 쓰면 그 점의 떨림이 그대로 수치에 실립니다. 3점을 평균해 랜드마크 단위 노이즈를
    구조적으로 줄입니다(같은 잡음이면 표준편차가 약 1/√3). */
 const LID_L_PTS=[157,158,159,160,161], LID_R_PTS=[384,385,386,387,388];   // 윗눈꺼풀 5점
+/* 슬픔·화남 눈썹을 재기 위한 눈썹 양 끝. 안쪽 끝이 올라가면(팔자 눈썹) 슬픔,
+   안쪽 끝이 서로 가까워지면(미간 찌푸림) 슬픔·화남 양쪽에 공통으로 나타납니다. */
+const BROW_IN_L=107, BROW_IN_R=336, BROW_OUT_L=70, BROW_OUT_R=300;
 const BROW_L_PTS=[70,63,105,66,107], BROW_R_PTS=[336,296,334,293,300];  // 눈썹 전체 윤곽 5점
 const ANCHOR_PTS=[33,263,1];                              // 프레임 간 일관성 검사용 안정점
 const NOSE_TIP=1, UPPER_LIP=0;          // 고개 방향 추정 / 입꼬리 기준선
-const SKIN_PATCHES=[151,205,425];       // 이마 중앙 + 좌우 볼 (머리카락을 피한 피부 표본)
 /* refineLandmarks:true 일 때만 존재하는 홍채 점. 홍채는 사람마다 크기가 거의 같은
    물리적 원이라, 거리·고개 방향과 무관한 절대 기준 길이로 쓸 수 있습니다. */
 const IRIS_L=[468,469,470,471,472], IRIS_R=[473,474,475,476,477];
@@ -501,6 +487,22 @@ function computeBrowGap(getPt,S){
   };
   return ((side(BROW_L_PTS,LID_L_PTS)+side(BROW_R_PTS,LID_R_PTS))/2)/S;
 }
+/* 미간 너비. 슬프거나 화날 때 눈썹 안쪽이 서로 당겨져 좁아집니다.
+   웃음 근육(광대)과는 완전히 다른 근육이라, 웃는 것만으로는 변하지 않습니다.
+   바로 그 독립성 덕분에 "웃는 입 + 슬픈 눈썹"이 진짜 모순이 됩니다. */
+function computeBrowKnit(getPt,S){
+  if(!S) return 0;
+  return dist(getPt(BROW_IN_L), getPt(BROW_IN_R))/S;
+}
+/* 눈썹 기울기. 바깥쪽 끝보다 안쪽 끝이 얼마나 위로 올라갔는지(팔자 눈썹 정도).
+   울 것 같은 표정의 가장 뚜렷한 신호입니다. */
+function computeBrowSlant(getPt,S){
+  if(!S) return 0;
+  const l=getPt(BROW_OUT_L).y-getPt(BROW_IN_L).y;
+  const r=getPt(BROW_OUT_R).y-getPt(BROW_IN_R).y;
+  return ((l+r)/2)/S;
+}
+
 /* 입꼬리 높이. 예전에는 "눈높이 선에서 얼마나 내려와 있나"로 쟀는데, 고개를 숙이면
    그 거리가 짧아져서 웃지 않았는데도 웃음으로 잡혔습니다(치명적 오탐).
    이제는 바로 위의 윗입술 중앙을 기준으로 재기 때문에, 두 점이 몇 cm 안에 붙어 있어
@@ -509,72 +511,8 @@ function computeCornerRise(getPt,S,idx){
   if(!S) return 0;
   return (getPt(UPPER_LIP).y - getPt(idx).y)/S;
 }
-const offCanvas=document.createElement('canvas');
-/* 조명·피부톤에 적응하기 위해 매 프레임 피부 밝기를 잽니다.
-   예전에는 랜드마크 10(헤어라인)을 썼는데 머리카락이 잡히면 기준이 어두워져
-   치아 판정이 헐거워졌습니다. 이제 이마 중앙과 양 볼 세 곳을 재서 중앙값을 씁니다. */
-function samplePatchBrightness(video,idx,lm,w,h){
-  const p=pt(lm,idx,w,h), size=12;
-  const x=Math.max(0,Math.floor(p.x-size/2)), y=Math.max(0,Math.floor(p.y-size/2));
-  const sw=Math.min(w-x,size), sh=Math.min(h-y,size);
-  if(sw<3||sh<3) return null;
-  offCanvas.width=sw; offCanvas.height=sh;
-  const octx=offCanvas.getContext('2d');
-  try{ octx.drawImage(video,x,y,sw,sh,0,0,sw,sh); }catch(e){ return null; }
-  let data;
-  try{ data=octx.getImageData(0,0,sw,sh).data; }catch(e){ return null; }
-  let sum=0,n=0;
-  for(let i=0;i<data.length;i+=4){ if(data[i+3]<10) continue; sum+=Math.max(data[i],data[i+1],data[i+2])/255; n++; }
-  return n ? sum/n : null;
-}
-function sampleSkinBrightness(video,lm,w,h){
-  const vals=[];
-  for(const idx of SKIN_PATCHES){
-    if(lm.length<=idx) continue;
-    const v=samplePatchBrightness(video,idx,lm,w,h);
-    if(v!==null) vals.push(v);
-  }
-  return vals.length ? median(vals) : 0.6;
-}
-function teethWhiteRatio(video,lm,w,h,skinV){
-  const pts=MOUTH_RING.map(i=>pt(lm,i,w,h));
-  const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
-  const minX=Math.max(0,Math.floor(Math.min(...xs))), minY=Math.max(0,Math.floor(Math.min(...ys)));
-  const maxX=Math.min(w,Math.ceil(Math.max(...xs))), maxY=Math.min(h,Math.ceil(Math.max(...ys)));
-  const rw=maxX-minX, rh=maxY-minY;
-  if(rw<3||rh<3) return 0;
-  offCanvas.width=rw; offCanvas.height=rh;
-  const octx=offCanvas.getContext('2d');
-  octx.clearRect(0,0,rw,rh);
-  octx.save(); octx.beginPath();
-  pts.forEach((p,i)=>{const px=p.x-minX,py=p.y-minY; if(i===0) octx.moveTo(px,py); else octx.lineTo(px,py);});
-  octx.closePath(); octx.clip();
-  try{ octx.drawImage(video,minX,minY,rw,rh,0,0,rw,rh); }catch(e){ return 0; }
-  octx.restore();
-  let data;
-  try{ data=octx.getImageData(0,0,rw,rh).data; }catch(e){ return 0; }
-  let total=0, white=0;
-  const vCut=Math.max(0.55, skinV*1.08); // brighter than the person's own skin, not a fixed absolute value
-  for(let i=0;i<data.length;i+=4){
-    if(data[i+3]<10) continue; total++;
-    const r=data[i],g=data[i+1],b=data[i+2];
-    const max=Math.max(r,g,b),min=Math.min(r,g,b);
-    const v=max/255, sat=max===0?0:(max-min)/max;
-    /* 치아는 무채색에 가깝고, 입술·잇몸·혀는 붉은기가 강합니다. 밝기만 보면 입술에 맺힌
-       하이라이트가 치아로 잡혀 억울하게 걸리는 일이 생기므로, 붉은 쪽으로 치우친 픽셀은
-       제외합니다(빨강이 파랑보다 뚜렷하게 크면 피부·입술 계열). */
-    const reddish = (r-b) > 34;
-    if(v>vCut && sat<0.30 && !reddish) white++;
-  }
-  /* 이 잘라낸 이미지는 화면에 절대 그려지지 않습니다. 메모리에서 수치만 읽고 바로 버립니다.
-     표본이 너무 적으면(입을 거의 다문 상태) 픽셀 몇 개의 노이즈가 큰 비율로 부풀려져
-     억울하게 "이빨 보임"으로 걸릴 수 있으므로, 판정에 쓰지 않고 0으로 둡니다. */
-  if(total<30) return 0;
-  return white/total;
-}
-
 /* 측정 채널마다 One-Euro 필터를 하나씩 둡니다. */
-const FILTER_KEYS=['lidL','lidR','mar','mouthWidth','browGap','riseL','riseR','yaw','pitch'];
+const FILTER_KEYS=['lidL','lidR','mar','mouthWidth','browGap','riseL','riseR','yaw','pitch','browKnit','browSlant'];
 const filters={};
 FILTER_KEYS.forEach(k=>filters[k]=makeFilter());
 function pushSmooth(key,val,dt){ return filterPush(filters[key], val, dt); }
@@ -587,14 +525,14 @@ function primeFilters(){
   });
 }
 
-let baseline={lidL:0.055,lidR:0.055,mouthWidth:0.40,browGap:0.075,riseL:-0.055,riseR:-0.055,yaw:0.5,pitch:0.30};
+let baseline={lidL:0.055,lidR:0.055,mouthWidth:0.40,browGap:0.075,riseL:-0.055,riseR:-0.055,yaw:0.5,pitch:0.30,browKnit:0.13,browSlant:0.0};
 let calibSamples=null;
 /* yawRaw / widthRaw 는 기준값 계산에는 쓰지 않고, "준비 시간 동안 가만히 있었는지"를
    판정할 때만 씁니다. 필터를 거친 값으로 흔들림을 재면 필터가 흔들림을 지워버려서
    고개를 크게 흔들어도 "안정적"으로 보이기 때문입니다. */
 const CALIB_CHECK_ONLY=['yawRaw','widthRaw'];
 function calibSampleCount(){ return calibSamples ? calibSamples.mouthWidth.length : 0; }
-function startCalibration(){ calibSamples={lidL:[],lidR:[],mouthWidth:[],browGap:[],riseL:[],riseR:[],yaw:[],pitch:[],yawRaw:[],widthRaw:[]}; }
+function startCalibration(){ calibSamples={lidL:[],lidR:[],mouthWidth:[],browGap:[],riseL:[],riseR:[],yaw:[],pitch:[],browKnit:[],browSlant:[],yawRaw:[],widthRaw:[]}; }
 /* 캘리브레이션 중의 눈 깜빡임은 "평소 눈 크기"를 실제보다 작게 만들어 기준을 망칩니다.
    그래서 깜빡이는 프레임은 표본에서 제외합니다. */
 /* 예전에는 깜빡이는 프레임을 여기서 걸러냈는데, 그 판정이 '직전 기준값' 대비 비율이라
@@ -710,6 +648,14 @@ function scoreMouthSmile(mouthWidthNorm, avgRawLift){
   return clamp(Math.max(widthSig, avgRawLift), 0, 1);
 }
 function scoreEyeSquint(avgLid){ const base=(baseline.lidL+baseline.lidR)/2; if(!base) return 0; return clamp((1-avgLid/base)/0.28,0,1); }
+/* 슬픈 눈썹 점수. 미간 좁힘과 안쪽 올림 중 더 뚜렷한 쪽을 씁니다 — 사람마다 잘 되는
+   방향이 다르고(어떤 사람은 미간이, 어떤 사람은 팔자 눈썹이 잘 됩니다), 둘 다 "웃음이
+   아닌 감정"을 가리키므로 어느 쪽이든 모순은 성립합니다. */
+function scoreSadBrow(browKnit, browSlant){
+  const knit = baseline.browKnit ? (baseline.browKnit-browKnit)/0.040 : 0;
+  const slant = (browSlant-baseline.browSlant)/0.030;
+  return clamp(Math.max(knit, slant), 0, 1);
+}
 function scoreBrowDrop(browGap){ if(!baseline.browGap) return 0; return clamp((1-browGap/baseline.browGap)/0.26,0,1); }
 
 /* ── 프레임 간 일관성 ─────────────────────────────────────────────────────────
@@ -778,14 +724,14 @@ const MISSIONS=[
         tip:'눈썹을 눈에서 멀찍이 띄운 채로 유지하세요. 눈썹이 눈 쪽으로 내려오면 걸립니다.'}
     ]
   },
-  { id:'no_teeth', label:'이빨 안 보이게 웃기', desc:'환하게 웃되 이빨은 하나도 보이면 안 돼요.',
-    explain:'AI는 입 안의 밝은 영역(치아)을 감지해 웃음의 강도를 판단합니다. 입꼬리는 올리되 치아를 입술로 가리면 AI가 판단하기 어려워집니다.',
+  { id:'cry_smile', label:'울면서 웃기', desc:'입은 활짝 웃고, 눈썹은 울 것 같은 표정을 동시에 지으세요.',
+    explain:'AI는 표정을 하나의 감정으로 분류하도록 배웠습니다. 그래서 얼굴 위아래가 서로 다른 감정을 가리키면 어느 쪽으로도 확정하지 못해요. 입꼬리를 올리는 광대 근육과 눈썹을 찌푸리거나 안쪽을 끌어올리는 근육은 서로 완전히 독립적이라, 두 감정을 한 얼굴에 동시에 올릴 수 있습니다. 실제로 사람도 이 표정을 가장 헷갈려 합니다.',
     metrics:[
       {key:'mouthSmile', label:'입꼬리 올림 · mouthSmile', cmp:'>=', threshold:0.5, get:m=>m.mouthSmile,
-        tip:'입꼬리를 더 확실히 올려 보세요.'},
-      {key:'teeth', label:'이빨 보임 · 입 속 밝은 픽셀 비율', cmp:'<=', threshold:0.10, get:m=>m.teeth, isPercent:true,
-        tip:'입술을 붙인 채로 입꼬리만 옆으로 당겨서 웃어보세요.'},
-      {key:'jawOpen', label:'입 벌림 · jawOpen', get:m=>m.mar, reference:true}
+        tip:'입꼬리를 옆으로 더 확실히 당겨 보세요. 눈썹은 그대로 둔 채 입만 웃는 게 핵심입니다.'},
+      {key:'sadBrow', label:'슬픈 눈썹 · sadBrow', cmp:'>=', threshold:0.45, get:m=>m.sadBrow,
+        tip:'미간을 찡그리거나, 눈썹 안쪽 끝을 위로 끌어올려 보세요(울기 직전 표정). 둘 중 잘 되는 쪽이면 됩니다.'},
+      {key:'browGap', label:'눈썹 높이 · browGap', get:m=>m.browDrop, reference:true}
     ]
   },
   { id:'half_smile', label:'한쪽만 웃기', desc:'한쪽 입꼬리만 확실히 올리고 반대쪽은 그대로 두세요.',
@@ -1069,9 +1015,6 @@ function startChallenge(){
   primeFilters();
   timeLimitStart=performance.now()/1000;
   $('challengeMissionTitle').textContent=currentMission.label;
-  $('mouthZoomWrap').style.display = currentMission.id==='no_teeth' ? 'flex' : 'none';
-  if($('mouthZoomFill')) $('mouthZoomFill').style.width='0%';
-  if($('mouthZoomLabel')) $('mouthZoomLabel').textContent='치아 밝기 감지 0%';
   setFeedback('', '얼굴을 화면 중앙에 맞춰주세요');
   $('holdFill').style.width='0%';
   $('holdLabel').textContent='0.0 / '+holdSeconds().toFixed(1)+'s';
@@ -1127,6 +1070,8 @@ function onResults(results){
     const mar=pushSmooth('mar',computeMAR(rot.get,S),dt);
     const mouthWidth=pushSmooth('mouthWidth',computeMouthWidthNorm(rot.get,S),dt);
     const browGap=pushSmooth('browGap',computeBrowGap(rot.get,S),dt);
+    const browKnit=pushSmooth('browKnit',computeBrowKnit(rot.get,S),dt);
+    const browSlant=pushSmooth('browSlant',computeBrowSlant(rot.get,S),dt);
     const riseL=pushSmooth('riseL',computeCornerRise(rot.get,S,MOUTH_L),dt);
     const riseR=pushSmooth('riseR',computeCornerRise(rot.get,S,MOUTH_R),dt);
     /* 자세 판정은 필터를 거치지 않은 값으로 합니다. 필터를 거치면 고개를 빨리 돌렸을 때
@@ -1144,18 +1089,9 @@ function onResults(results){
       const cq=calibQuality(S,yawRaw,jump,true);
       showCalibHint(cq.ok?'ok':'warn', cq.why);
       if(cq.ok){
-        feedCalibration({lidL,lidR,mouthWidth,browGap,riseL,riseR,yaw,pitch,
+        feedCalibration({lidL,lidR,mouthWidth,browGap,riseL,riseR,yaw,pitch,browKnit,browSlant,
           yawRaw:yawRaw, widthRaw:computeMouthWidthNorm(rot.get,S)});
       }
-    }
-
-    const needTeeth = step==='challenge' && currentMission && currentMission.metrics.some(m=>m.key==='teeth');
-    let teeth=0;
-    if(needTeeth){
-      teeth=teethWhiteRatio(video,lm,w,h,sampleSkinBrightness(video,lm,w,h));
-      const fillEl=$('mouthZoomFill'), labelEl=$('mouthZoomLabel');
-      if(fillEl) fillEl.style.width=Math.round(teeth*100)+'%';
-      if(labelEl) labelEl.textContent='치아 밝기 감지 '+Math.round(teeth*100)+'%';
     }
 
     const rawLiftL=rawCornerLift(riseL, baseline.riseL);
@@ -1165,11 +1101,11 @@ function onResults(results){
       mouthSmile: scoreMouthSmile(mouthWidth, (rawLiftL+rawLiftR)/2),
       eyeSquint: eyeSquintGuarded(scoreEyeSquint((lidL+lidR)/2), rawLidRatio, now),
       browDrop: scoreBrowDrop(browGap),
+      sadBrow: scoreSadBrow(browKnit, browSlant),
       cornerL: liftL,
       cornerR: liftR,
       smirkHigh: Math.max(liftL,liftR),
       smirkLow: Math.min(liftL,liftR),
-      teeth: teeth,
       mar: mar
     };
     MOTION_KEYS.forEach(k=>{ targetMetrics[k]=metrics[k]; });
@@ -1199,8 +1135,8 @@ function onResults(results){
 
 /* --- 얼굴 스키매틱 애니메이션: 실제 인식값(targetMetrics)을 부드럽게 보간(lerp)하여
    프레임 노이즈나 인식 프레임 저하와 무관하게 표정 모션이 자연스럽게 보이도록 처리 --- */
-const MOTION_KEYS=['mouthSmile','eyeSquint','browDrop','cornerL','cornerR','smirkHigh','smirkLow','teeth','mar'];
-const DECAY_KEYS=['mouthSmile','eyeSquint','browDrop','cornerL','cornerR','smirkHigh','smirkLow','mar'];
+const MOTION_KEYS=['mouthSmile','eyeSquint','browDrop','sadBrow','cornerL','cornerR','smirkHigh','smirkLow','mar'];
+const DECAY_KEYS=['mouthSmile','eyeSquint','browDrop','sadBrow','cornerL','cornerR','smirkHigh','smirkLow','mar'];
 function zeroMetrics(){ const o={}; MOTION_KEYS.forEach(k=>o[k]=0); return o; }
 let targetMetrics=zeroMetrics();
 let displayMetrics=zeroMetrics();
@@ -1216,15 +1152,23 @@ function renderFaceSvg(raw, blinkVal, tNow){
   if(!isFinite(tNow)) tNow=0;
   const eyeL=$('eyeL'), eyeR=$('eyeR'), browL=$('browL'), browR=$('browR');
   const mouth=$('mouth'), outline=$('mouthOutline'), lipShine=$('lipShine');
-  const tongue=$('tongue'), teethGroup=$('teethGroup'), dimpleL=$('dimpleL'), dimpleR=$('dimpleR');
+  const tongue=$('tongue'), dimpleL=$('dimpleL'), dimpleR=$('dimpleR');
 
   const squint=clamp(m.eyeSquint+blinkVal,0,1.05);
   const ry=clamp(9*(1-squint*0.92),0.6,9);
   eyeL.setAttribute('ry',ry.toFixed(2)); eyeR.setAttribute('ry',ry.toFixed(2));
 
+  /* 눈썹: 아래로 내려오는 정도(browDrop)에 더해, 슬픈 눈썹일 때는 안쪽 끝을 들어올리고
+     좌우를 서로 가깝게 당겨 '울 것 같은' 모양을 실제로 만들어 보여줍니다. 사용자가 자기
+     눈썹이 조건을 만족했는지 수치가 아니라 모양으로 바로 알 수 있게 하기 위한 것입니다. */
   const browDrop=Math.max(m.eyeSquint*0.5, m.browDrop)*9;
-  browL.setAttribute('d','M90,'+(95+browDrop*0.4).toFixed(1)+' Q110,'+(82+browDrop).toFixed(1)+' 130,'+(95+browDrop*0.4).toFixed(1));
-  browR.setAttribute('d','M170,'+(95+browDrop*0.4).toFixed(1)+' Q190,'+(82+browDrop).toFixed(1)+' 210,'+(95+browDrop*0.4).toFixed(1));
+  const sad=m.sadBrow;
+  const innerUp=sad*11, knitIn=sad*7;
+  // SVG 기준 왼쪽 눈썹은 M90(바깥) → 130(안쪽)
+  const lOut=95+browDrop*0.4, lIn=95+browDrop*0.4-innerUp;
+  const rOut=95+browDrop*0.4, rIn=95+browDrop*0.4-innerUp;
+  browL.setAttribute('d','M90,'+lOut.toFixed(1)+' Q110,'+(82+browDrop-innerUp*0.45).toFixed(1)+' '+(130+knitIn).toFixed(1)+','+lIn.toFixed(1));
+  browR.setAttribute('d','M210,'+rOut.toFixed(1)+' Q190,'+(82+browDrop-innerUp*0.45).toFixed(1)+' '+(170-knitIn).toFixed(1)+','+rIn.toFixed(1));
 
   // subtle idle sway so the mouth model never looks perfectly frozen (cosmetic only)
   const cx = 150 + Math.sin(tNow/1400)*0.6;
@@ -1256,23 +1200,6 @@ function renderFaceSvg(raw, blinkVal, tNow){
   dimpleR.setAttribute('opacity', clamp(Math.max(m.mouthSmile,m.cornerR)*1.4-0.15,0,0.9).toFixed(2));
 
   const midTopY=(topYL+topYR)/2;
-  // teeth rendered as 6 individual teeth (not one flat block) for a more convincing reveal
-  const teethVisible = filled && m.teeth>0.03;
-  teethGroup.setAttribute('opacity', teethVisible ? clamp(0.25+m.teeth*0.9,0,0.95).toFixed(2) : 0);
-  if(teethVisible){
-    const innerL=lx+6, innerR=rx-6, span=Math.max(0,innerR-innerL);
-    const th=clamp(m.teeth,0,1)*16;
-    const n=6, gap=1.4, toothW=Math.max(0,(span-gap*(n-1))/n);
-    for(let i=0;i<n;i++){
-      const tRect=$('teeth'+i);
-      const tx=innerL+i*(toothW+gap);
-      tRect.setAttribute('x', tx.toFixed(1));
-      tRect.setAttribute('y', (midTopY-openAmt*0.05).toFixed(1));
-      tRect.setAttribute('width', toothW.toFixed(1));
-      tRect.setAttribute('height', th.toFixed(1));
-    }
-  }
-
   // 입이 충분히 크게 벌어졌을 때만 혀가 보입니다
   const tongueVisible = filled && openAmt>20;
   if(tongueVisible){
@@ -1295,7 +1222,7 @@ function faceAnimLoop(now){
   }
   const k=1-Math.pow(0.001, dt/1000);
   // 입 관련 채널은 눈/눈썹보다 더 빠르게 추종합니다 — 화면에서 "제대로 보여야" 하는 부분이라서.
-  const speedMul={mouthSmile:4.2, mar:4.6, teeth:5.2, cornerL:4.4, cornerR:4.4, smirkHigh:4.4, smirkLow:4.4, eyeSquint:3.4, browDrop:3.4};
+  const speedMul={mouthSmile:4.2, mar:4.6, cornerL:4.4, cornerR:4.4, smirkHigh:4.4, smirkLow:4.4, eyeSquint:3.4, browDrop:3.4};
   MOTION_KEYS.forEach(key=>{
     const t=targetMetrics[key];
     if(!isFinite(t)) return;
@@ -1406,7 +1333,7 @@ function failText(mt){
     mouthSmile:'입꼬리를 더 확실히 올려 보세요.',
     eyeSquint:'눈이 가늘어졌어요. 눈을 평소대로 크게 뜨고 있으세요.',
     browDrop:'눈썹이 눈 쪽으로 내려왔어요. 눈썹을 그대로 두세요.',
-    teeth:'이빨이 보여요! 입술로 가려주세요.',
+    sadBrow:'눈썹이 아직 평온해요. 미간을 찡그리거나 눈썹 안쪽을 올려보세요.',
     smirkHigh:'한쪽 입꼬리를 더 확실히 올려 보세요.',
     smirkLow:'반대쪽 입꼬리도 같이 올라가고 있어요. 한쪽만!',
     jawOpen:'입을 너무 크게 벌리고 있어요.'
