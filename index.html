@@ -597,10 +597,15 @@ function calibSampleCount(){ return calibSamples ? calibSamples.mouthWidth.lengt
 function startCalibration(){ calibSamples={lidL:[],lidR:[],mouthWidth:[],browGap:[],riseL:[],riseR:[],yaw:[],pitch:[],yawRaw:[],widthRaw:[]}; }
 /* 캘리브레이션 중의 눈 깜빡임은 "평소 눈 크기"를 실제보다 작게 만들어 기준을 망칩니다.
    그래서 깜빡이는 프레임은 표본에서 제외합니다. */
-function feedCalibration(v, blinking){
+/* 예전에는 깜빡이는 프레임을 여기서 걸러냈는데, 그 판정이 '직전 기준값' 대비 비율이라
+   문제가 있었습니다. 첫 실행에는 기준값이 기본값(모든 사람의 평균치)이라, 눈이 가는 편인
+   사람은 가만히 뜨고 있어도 매 프레임 "깜빡이는 중"으로 분류돼 눈 표본이 하나도 쌓이지
+   않았고, 결국 시작 자체가 불가능했습니다.
+   이제는 전부 모으고, 마지막에 상·하위를 잘라낸 평균(trimmedMean)으로 기준을 잡습니다.
+   깜빡임은 값을 아래로만 밀기 때문에 하위 절단으로 자연히 제거됩니다. */
+function feedCalibration(v){
   if(!calibSamples) return;
   Object.keys(calibSamples).forEach(k=>{
-    if(blinking && (k==='lidL'||k==='lidR'||k==='browGap')) return;
     if(typeof v[k]==='number' && isFinite(v[k])) calibSamples[k].push(v[k]);
   });
 }
@@ -608,31 +613,56 @@ function feedCalibration(v, blinking){
    변했는가"로 계산되기 때문에, 기준이 엉터리면 이후 모든 수치가 통째로 틀립니다.
    그래서 (1) 표본 수, (2) 값의 타당성, (3) 흔들림 정도를 모두 확인한 뒤에만 갱신합니다. */
 const CALIB_MIN_SAMPLES=10;
+const CALIB_SETTLE_DROP=15;   // 약 0.5초(30fps) 분량
 function stdev(arr){
   if(arr.length<2) return 0;
   const m=arr.reduce((a,b)=>a+b,0)/arr.length;
   return Math.sqrt(arr.reduce((a,b)=>a+(b-m)*(b-m),0)/arr.length);
+}
+/* 위아래 20%를 잘라낸 뒤의 표준편차. 깜빡임이나 한두 프레임짜리 검출 오류가
+   "움직였다"는 판정으로 이어지지 않게 합니다. */
+function trimmedStdev(arr){
+  if(arr.length<4) return stdev(arr);
+  const s=[...arr].sort((a,b)=>a-b);
+  const cut=Math.floor(s.length*0.2);
+  const core=s.slice(cut, s.length-cut);
+  return stdev(core.length?core:s);
 }
 function finishCalibration(){
   const cs=calibSamples;
   calibSamples=null;
   if(!cs || cs.mouthWidth.length<CALIB_MIN_SAMPLES) return false;
   if(cs.lidL.length<CALIB_MIN_SAMPLES/2 || cs.lidR.length<CALIB_MIN_SAMPLES/2) return false;
+  /* 버튼을 누른 직후 0.5초는 아직 자세와 표정을 잡는 중입니다. 방금까지 웃고 있었다면
+     그 잔상이 "무표정 기준"에 섞여 이후 판정이 통째로 어긋납니다. 표본이 넉넉할 때는
+     앞부분을 버리고 안정된 뒷부분만 씁니다. */
+  const settle = s => (s.length > CALIB_SETTLE_DROP*2 ? s.slice(CALIB_SETTLE_DROP) : s);
+  const use={};
+  Object.keys(cs).forEach(k=>{ use[k]=settle(cs[k]); });
   const next={};
-  Object.keys(cs).forEach(k=>{
+  Object.keys(use).forEach(k=>{
     if(CALIB_CHECK_ONLY.indexOf(k)>=0) return;
-    next[k] = cs[k].length ? trimmedMean(cs[k]) : baseline[k];
+    next[k] = use[k].length ? trimmedMean(use[k]) : baseline[k];
   });
   const finiteOk = Object.keys(next).every(k=>isFinite(next[k]));
   const sane = finiteOk && next.lidL>0.005 && next.lidR>0.005 &&
                next.mouthWidth>0.10 && next.browGap>0.005 && next.pitch>0.02;
-  // 준비 시간 동안 얼굴이 심하게 움직였다면 그 평균은 "무표정 기준"이 아닙니다.
-  /* 준비 시간 동안 표정이 흔들렸다면 그 평균은 '무표정'이 아닙니다. 입 크기와 고개 방향뿐
-     아니라 눈과 입꼬리까지 확인해, 눈을 깜빡이거나 웃다 만 상태로 잡힌 기준을 걸러냅니다. */
-  const steady = stdev(cs.widthRaw.length?cs.widthRaw:cs.mouthWidth) < next.mouthWidth*0.22 &&
-                 stdev(cs.yawRaw.length?cs.yawRaw:cs.yaw) < 0.05 &&
-                 stdev(cs.lidL) < next.lidL*0.30 && stdev(cs.lidR) < next.lidR*0.30 &&
-                 stdev(cs.riseL) < 0.012 && stdev(cs.riseR) < 0.012;
+  /* 흔들림은 반드시 '절단 표준편차'로 재야 합니다. 그냥 표준편차를 쓰면 3초 동안의 눈
+     깜빡임 한두 번이 퍼짐을 크게 부풀려서, 가만히 있었는데도 "움직였다"고 거부됐습니다.
+     입 크기와 고개 방향만 봅니다 — 눈과 입꼬리까지 더했더니 정상적인 미세한 움직임에도
+     거부되는 일이 잦았고, 표정이 바뀌면 입 크기에서 이미 걸립니다. */
+  /* 두 검사는 서로 다른 신호를 봐야 합니다. 측정해서 정한 결론입니다.
+
+     입 크기 — 필터를 거친 값. 필터 전 값으로 재면 카메라 노이즈(0.047)와 실제로 웃으며
+     변하는 표정(0.047)이 수치상 구분되지 않아, 화질 나쁜 카메라를 쓰는 사람이 가만히
+     있어도 "움직였다"고 거부됩니다. 필터를 거치면 노이즈는 0.022로 내려가고 표정 변화는
+     0.046으로 남아 확실히 갈립니다. 문턱 0.037.
+
+     고개 방향 — 필터 전 값. 여기서는 정반대입니다. 고개를 빠르게 좌우로 흔들면 필터가
+     그걸 평균 내버려 0.001(완전히 정지한 것처럼)로 보입니다. 필터 전 값은 0.098로
+     또렷이 잡힙니다. 문턱 0.012. */
+  const steady = trimmedStdev(use.mouthWidth) < next.mouthWidth*0.037 &&
+                 trimmedStdev(use.yawRaw.length?use.yawRaw:use.yaw) < 0.012;
   if(!sane || !steady) return false;
   baseline=next;
   return true;
@@ -707,11 +737,17 @@ function anchorJump(getPt,S,now){
 /* ── 캘리브레이션 전용 품질 검사 ───────────────────────────────────────────────
    기준값을 "만드는 중"에는 기준값과 비교할 수 없습니다. 그래서 절대 조건만 봅니다:
    얼굴이 충분히 크고, 정면을 보고 있고, 추적이 튀지 않는지. 이 프레임만 표본으로 씁니다. */
-const CALIB_YAW_TOL=0.09;
+/* 예전에는 여기서 "코가 두 눈 정중앙에 있어야 한다"(yaw 0.5 ± 0.09)를 요구했습니다.
+   그런데 그 값은 사람마다 얼굴 비대칭, 노트북 카메라의 위치·렌즈 왜곡 때문에 0.4나 0.6이
+   되는 게 정상입니다. 그런 사용자는 정면을 보고 있는데도 모든 프레임이 버려져서
+   "정면을 봐주세요"만 반복되고 영원히 시작할 수 없었습니다.
+   게다가 도전 중 자세 검사는 '캘리브레이션 때의 자세 대비 변화량'으로 하므로,
+   절대 각도는 애초에 필요하지도 않았습니다. 옆을 보는 극단적인 경우만 막습니다. */
+const CALIB_YAW_TOL=0.22;
 function calibQuality(S, yawRaw, jump, faceSeen){
   if(!faceSeen) return {ok:false, why:'얼굴이 보이지 않아요. 화면 중앙에 얼굴을 맞춰주세요.'};
   if(!(S>MIN_SCALE_PX)) return {ok:false, why:'조금 더 가까이 와주세요.'};
-  if(Math.abs(yawRaw-0.5)>CALIB_YAW_TOL) return {ok:false, why:'카메라를 정면으로 봐주세요.'};
+  if(Math.abs(yawRaw-0.5)>CALIB_YAW_TOL) return {ok:false, why:'카메라 쪽을 바라봐주세요.'};
   if(jump>JUMP_TOL_PER_SEC) return {ok:false, why:'잠시 그대로 있어주세요.'};
   return {ok:true, why:'좋아요. 무표정을 유지해주세요.'};
 }
@@ -1109,7 +1145,7 @@ function onResults(results){
       showCalibHint(cq.ok?'ok':'warn', cq.why);
       if(cq.ok){
         feedCalibration({lidL,lidR,mouthWidth,browGap,riseL,riseR,yaw,pitch,
-          yawRaw:yawRaw, widthRaw:computeMouthWidthNorm(rot.get,S)}, blinking);
+          yawRaw:yawRaw, widthRaw:computeMouthWidthNorm(rot.get,S)});
       }
     }
 
