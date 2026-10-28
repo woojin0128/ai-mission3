@@ -263,6 +263,12 @@ const READY_COUNTDOWN = 3, AUTO_RETURN = 10;
 
 /* 판정 기준은 하나로 고정합니다(전 구간 검증된 값). */
 const HOLD_SECONDS = 3.0, TIME_LIMIT = 20.0;
+/* 도전이 시작된 직후 0.35초는 결과표 집계에서 뺍니다. 필터가 무표정 기준값에서 출발해
+   실제 표정까지 올라오는 데 그만큼 걸리고, 그 구간에서는 모든 수치가 '무표정'에 가깝게
+   읽힙니다. 무표정은 "눈을 찡그리지 마라" 같은 조건을 공짜로 만족시키기 때문에, 내내
+   눈을 찡그린 사람에게도 '눈 가늘어짐 0.00 · 통과'와 "조건은 다 만들었다"는 안내가
+   나갔습니다. 유지 시간(3초)에는 영향이 없습니다. */
+const SETTLE_SECONDS = 0.35;
 function holdSeconds(){ return HOLD_SECONDS; }
 function timeLimit(){ return TIME_LIMIT; }
 function effThreshold(mt){ return mt.threshold; }
@@ -372,25 +378,38 @@ function makeRotatedGetter(lm,w,h){
 /* 카메라 화면 + 랜드마크 오버레이를 한 캔버스에 직접 그립니다.
    영상과 추적점이 같은 좌표계에서 같은 변환으로 그려지므로 둘이 어긋나지 않고,
    거울처럼 보이도록 캔버스 안에서 좌우를 반전합니다. */
+/* 이 캔버스는 화면에서 폭 340~640px 정도로만 보입니다. 카메라 해상도 그대로 그려두고
+   CSS로 줄이면, 보이지도 않는 화소를 매 프레임 칠하느라 그래픽 부하만 커집니다. */
+const OVERLAY_MAX_W=480;
 function renderCameraView(lm,w,h){
+  /* 카메라 화면은 도전 화면에만 있습니다. 무표정 기준을 잡는 동안에도 매 프레임 그리고
+     있었지만, 그때는 아무도 볼 수 없는 캔버스였습니다. 얼굴 인식 자체는 그리기와 무관하게
+     계속 돌아가므로 기준 잡기에는 영향이 없습니다. */
+  if(step!=='challenge' || document.hidden) return;
   const cv=document.getElementById('meshCanvas');
   if(!cv || !w || !h) return;
-  if(cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; }
+  const k=Math.min(1, OVERLAY_MAX_W/w);
+  const cw=Math.max(1,Math.round(w*k)), ch=Math.max(1,Math.round(h*k));
+  if(cv.width!==cw||cv.height!==ch){ cv.width=cw; cv.height=ch; }
   const ctx=cv.getContext('2d');
   if(!ctx) return;
   const video=document.getElementById('video');
   ctx.setTransform(1,0,0,1,0,0);
-  ctx.clearRect(0,0,w,h);
-  ctx.setTransform(-1,0,0,1,w,0);   // 좌우 반전
-  try{ ctx.drawImage(video,0,0,w,h); }catch(e){}
-  if(lm) drawLandmarks(ctx,lm,w,h);
+  ctx.clearRect(0,0,cw,ch);
+  ctx.setTransform(-1,0,0,1,cw,0);   // 좌우 반전
+  try{ ctx.drawImage(video,0,0,cw,ch); }catch(e){}
+  if(lm) drawLandmarks(ctx,lm,cw,ch);
   ctx.setTransform(1,0,0,1,0,0);
 }
 function drawLandmarks(ctx,lm,w,h){
   const scale=Math.max(1,w/640);
-  ctx.fillStyle='rgba(255,255,255,0.30)';
-  const d=1.5*scale;
-  for(let i=0;i<lm.length;i++){ ctx.fillRect(lm[i].x*w-d/2, lm[i].y*h-d/2, d, d); }
+  /* 478개를 fillRect로 하나씩 그리면 그리기 호출만 478번입니다. 경로 하나에 모아 한 번에
+     칠하고, 점은 한 칸 걸러 찍습니다 — 화면에서는 똑같이 촘촘해 보이면서 비용은 절반입니다. */
+  ctx.fillStyle='rgba(255,255,255,0.32)';
+  const d=1.6*scale;
+  ctx.beginPath();
+  for(let i=0;i<lm.length;i+=2){ ctx.rect(lm[i].x*w-d/2, lm[i].y*h-d/2, d, d); }
+  ctx.fill();
   const stroke=(idx,color,lw)=>{
     ctx.beginPath();
     for(let i=0;i<idx.length;i++){
@@ -623,23 +642,37 @@ function finishCalibration(){
    그 동안에는 직전 값을 그대로 유지합니다. 0.4초를 넘으면 의도적으로 감은 것이므로
    더는 보호하지 않고 실제 값을 내보냅니다. */
 const BLINK_RATIO=0.55, BLINK_MAX_SEC=0.40;
-let blinkActive=false, blinkSince=0, blinkFrozen=0, lastEyeSquint=0;
+/* sawOpen: 눈이 '떠 있는 상태'를 한 번이라도 본 적이 있는지.
+   깜빡임은 떴다가 감는 순간적인 변화입니다. 이 전제를 확인하지 않으면, 처음부터 눈을
+   가늘게 뜨고 있는 사람의 실눈이 깜빡임으로 오인되어 가려집니다. */
+let blinkActive=false, blinkSince=0, blinkFrozen=0, lastEyeSquint=0, sawOpen=false;
 function isBlinking(lidRatio){ return lidRatio < BLINK_RATIO; }
-function resetBlink(){ blinkActive=false; blinkSince=0; blinkFrozen=0; lastEyeSquint=0; }
+function resetBlink(){ blinkActive=false; blinkSince=0; blinkFrozen=0; lastEyeSquint=0; sawOpen=false; }
 // 깜빡임으로 보호해 줄 시간 안에 있는지 (넘으면 의도적으로 감은 것으로 처리)
-function blinkWithinWindow(now){ return !blinkActive || (now-blinkSince) < BLINK_MAX_SEC; }
+/* 깜빡임 상태는 한 프레임에 한 번만 갱신합니다. 예전에는 눈 필터를 멈출지 정하는 곳과
+   눈 수치를 보정하는 곳이 각각 따로 판정해서, 깜빡임 첫 프레임에는 아직 상태가 세워지지
+   않아 그 한 프레임이 필터로 새어 들어갔습니다. 호출 순서에 기대지 않도록 분리했습니다.
+   반환값은 "이 프레임은 깜빡임이라 눈 신호를 얼려야 한다"는 뜻입니다. */
+function updateBlink(lidRatio, now){
+  if(isBlinking(lidRatio)){
+    if(!sawOpen) return false;           // 떠 있던 적이 없으면 깜빡임이 아니라 실눈입니다
+    if(!blinkActive){ blinkActive=true; blinkSince=now; blinkFrozen=lastEyeSquint; }
+    return (now-blinkSince) < BLINK_MAX_SEC;   // 0.4초를 넘기면 찡그림으로 봅니다
+  }
+  blinkActive=false;
+  sawOpen=true;
+  return false;
+}
 // 필터에 새 값을 넣지 않고 현재 상태만 읽습니다.
 function filterValue(key, fallback){
   const f=filters[key];
   return (f && f.x!==null && isFinite(f.x)) ? f.x : fallback;
 }
-function eyeSquintGuarded(raw, lidRatio, now){
-  if(isBlinking(lidRatio)){
-    if(!blinkActive){ blinkActive=true; blinkSince=now; blinkFrozen=lastEyeSquint; }
-    if(now-blinkSince < BLINK_MAX_SEC) return blinkFrozen;
-    return raw;
-  }
-  blinkActive=false;
+/* updateBlink가 이미 판정해 둔 상태만 읽습니다.
+   깜빡이는 동안에는 깜빡임 직전의 값을 유지해, 0.15초짜리 깜빡임이 3초 유지를 깨지
+   않게 합니다. 반대로 처음부터 눈을 가늘게 뜨고 있으면 가려주지 않습니다. */
+function eyeSquintGuarded(raw, freeze){
+  if(freeze) return blinkFrozen;
   lastEyeSquint=raw;
   return raw;
 }
@@ -746,7 +779,7 @@ const MISSIONS=[
         tip:'입꼬리를 옆으로 더 확실히 당겨 보세요. 눈썹은 그대로 둔 채 입만 웃는 게 핵심입니다.'},
       {key:'sadBrow', label:'슬픈 눈썹 · sadBrow', cmp:'>=', threshold:0.45, get:m=>m.sadBrow,
         tip:'미간을 찡그리거나, 눈썹 안쪽 끝을 위로 끌어올려 보세요(울기 직전 표정). 둘 중 잘 되는 쪽이면 됩니다.'},
-      {key:'browGap', label:'눈썹 높이 · browGap', get:m=>m.browDrop, reference:true}
+      {key:'browGap', label:'눈썹 내려옴 · browDrop', get:m=>m.browDrop, reference:true}
     ]
   },
   { id:'half_smile', label:'한쪽만 웃기', desc:'한쪽 입꼬리만 확실히 올리고 반대쪽은 그대로 두세요.',
@@ -764,7 +797,8 @@ const MISSIONS=[
 let step='idle';
 let faceMesh=null, processing=false, lastFaceTime=0;
 let currentMission=null;
-let holdAccum=0, roundState={}, bestSnapshot=null, bestScore=-1, timeLimitStart=null, challengeDone=false;
+let holdAccum=0, roundState={}, bestPerMetric={}, sawAllPassFrame=false,
+    timeLimitStart=null, challengeDone=false;
 /* 도전 타이머 루프 핸들은 하나만 둡니다. 예전에는 변수가 두 개(timeLeftAnim / challengeAnimId)여서
    '다시 도전'을 누르면 이전 루프가 취소되지 않고 남아 루프가 둘 돌 수 있었습니다. */
 let challengeAnimId=null;
@@ -774,6 +808,12 @@ let lastResultOk=false, lastResultMission=null, lastResultFailedMetric=null;
 const $=id=>document.getElementById(id);
 function setStep(s){
   step=s;
+  /* 결과 화면을 벗어나면 '자동으로 처음 화면으로' 카운트다운을 반드시 멈춥니다.
+     예전에는 다시하기/처음으로 버튼에서만 멈췄습니다. 그래서 전시장에서 결과를 본 뒤
+     카운트다운이 끝나기 전에 바로 다음 도전을 시작하면, 남아 있던 카운트다운이 도전
+     중간에 터져서 플레이어를 선택 화면으로 끌어냈습니다. 결과도 안 나오고 타이머만
+     멈춘 채 게임이 사라지는, 가장 당황스러운 버그였습니다. */
+  if(s!=='result'){ clearInterval(autoReturnTimer); autoReturnTimer=null; autoReturnActive=false; }
   ['idle','select','challenge','result'].forEach((name,i)=>{
     $('step-'+name).classList.toggle('active', name===s);
     const pill=$('pill'+i);
@@ -937,10 +977,12 @@ $('camBtn').addEventListener('click', async ()=>{
      ideal로 요청하고, 그래도 실패하면 조건 없이 한 번 더 시도합니다.
      facingMode:'user'가 없으면 휴대폰에서 후면 카메라가 열릴 수 있습니다. */
   const attempts=[
-    /* 입력이 선명할수록 랜드마크, 특히 홍채 지름이 정확해집니다. 추론은 어차피 30fps로
-       제한하므로 해상도를 올려도 연산량이 비례해 늘지 않습니다. 못 맞추는 기기는 아래로 내려갑니다. */
-    {video:{facingMode:'user', width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30,max:60}}, audio:false},
-    {video:{facingMode:'user', width:{ideal:640}, height:{ideal:480}, frameRate:{ideal:30,max:60}}, audio:false},
+    /* 640x480으로 요청합니다. 한때 1280x720으로 올렸는데, 홍채 지름이 조금 더 정확해질
+       거라는 기대였을 뿐 실제 기기에서 이득을 확인한 적이 없습니다. 반면 매 프레임마다
+       영상 디코딩·캔버스 그리기·얼굴 인식 입력 준비가 모두 화소 수에 비례해 무거워져서
+       사양이 낮은 노트북에서 끊김이 생깁니다. 측정하지 않은 이득보다 실제로 겪는 끊김이
+       더 중요합니다. */
+    {video:{facingMode:'user', width:{ideal:640}, height:{ideal:480}, frameRate:{ideal:30,max:30}}, audio:false},
     {video:{facingMode:'user'}, audio:false},
     {video:true, audio:false}
   ];
@@ -1031,7 +1073,7 @@ $('readyBtn').addEventListener('click', ()=>{
 
 function startChallenge(){
   if(!currentMission) currentMission=pickMission();
-  holdAccum=0; roundState={}; bestSnapshot=null; bestScore=-1; challengeDone=false;
+  holdAccum=0; roundState={}; bestPerMetric={}; sawAllPassFrame=false; challengeDone=false;
   lastFrameT=null; resetBlink(); resetAnchors();
   /* 필터를 완전히 비우면 도전 첫 2~3프레임은 표본이 모자라 수치가 불안정합니다.
      방금 측정한 무표정 기준값으로 미리 채워두면(예열) 첫 프레임부터 정상 동작합니다. */
@@ -1086,8 +1128,7 @@ function onResults(results){
     const rawLidR=computeLidOpen(rot.get,EYE_R_OUT,EYE_R_IN,LID_R_PTS,S);
     const lidBase=(baseline.lidL+baseline.lidR)/2;
     const rawLidRatio = lidBase ? ((rawLidL+rawLidR)/2)/lidBase : 1;
-    const blinking = isBlinking(rawLidRatio);
-    const holdLidFilter = blinking && blinkWithinWindow(now);
+    const holdLidFilter = updateBlink(rawLidRatio, now);
     const lidL = holdLidFilter ? filterValue('lidL', rawLidL) : pushSmooth('lidL',rawLidL,dt);
     const lidR = holdLidFilter ? filterValue('lidR', rawLidR) : pushSmooth('lidR',rawLidR,dt);
 
@@ -1125,8 +1166,11 @@ function onResults(results){
     const rawLiftR=rawCornerLift(riseR, baseline.riseR);
     const liftL=scoreCornerLift(riseL, baseline.riseL), liftR=scoreCornerLift(riseR, baseline.riseR);
     const metrics={
+      /* eyeFrozen: 이 프레임의 눈 수치가 실측이 아니라 깜빡임 직전 값으로 얼어 있다는 표시.
+         결과표에 보여줄 '가장 잘한 순간'을 고를 때 이런 프레임을 제외하는 데 씁니다. */
+      eyeFrozen: holdLidFilter,
       mouthSmile: scoreMouthSmile(mouthWidth, (rawLiftL+rawLiftR)/2),
-      eyeSquint: eyeSquintGuarded(scoreEyeSquint((lidL+lidR)/2), rawLidRatio, now),
+      eyeSquint: eyeSquintGuarded(scoreEyeSquint((lidL+lidR)/2), holdLidFilter),
       browDrop: scoreBrowDrop(browGap),
       sadBrow: scoreSadBrow(browKnit, browSlant),
       cornerL: liftL,
@@ -1242,7 +1286,21 @@ function renderFaceSvg(raw, blinkVal, tNow){
   }
 }
 
+/* 캐릭터 얼굴 그림은 도전 화면에만 있습니다. 예전에는 대기·선택·결과 화면에서도 화면
+   주사율 그대로(120Hz 노트북이면 초당 120번) 계속 다시 그렸습니다. 보이지도 않는 그림을
+   위해 CPU를 계속 쓰던 것이라, 이것만으로도 체감 렉이 생겼습니다.
+   이제 도전 중이고 화면이 켜져 있을 때만 그리고, 초당 30번으로 제한합니다. 얼굴 인식도
+   초당 30번이라 그보다 자주 그릴 이유가 없습니다. */
+const SVG_FPS=30, SVG_MIN_GAP=1000/SVG_FPS;
+let lastSvgT=0;
 function faceAnimLoop(now){
+  if(step!=='challenge' || document.hidden){
+    lastAnimT=now; lastSvgT=0;
+    requestAnimationFrame(faceAnimLoop);
+    return;
+  }
+  if(now-lastSvgT < SVG_MIN_GAP){ requestAnimationFrame(faceAnimLoop); return; }
+  lastSvgT=now;
   const dt=Math.min(60, now-lastAnimT); lastAnimT=now;
   if(faceLostDecay){
     DECAY_KEYS.forEach(k=>{ targetMetrics[k]*=0.93; });
@@ -1279,7 +1337,7 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
   $('ringProgress').setAttribute('stroke-dashoffset', 276.5*(1-timeLeft/TL));
 
   const measurable = faceSeen && (now-lastFaceTime<=0.4) && quality && quality.ok;
-  let allPass=true, firstFailKey=null, passCount=0, frameVals=null;
+  let allPass=true, firstFailKey=null, passCount=0, frameVals=null, frameMinMargin=Infinity;
 
   if(!faceSeen || now-lastFaceTime>0.4){
     allPass=false;
@@ -1321,6 +1379,10 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
         fillEl.style.width=(clamp(pct,0,1)*100)+'%';
         fillEl.style.background = pass ? 'var(--good)' : 'var(--bad)';
       }
+      /* 이 프레임이 기준을 얼마나 여유 있게 넘겼는지(음수면 못 넘김). 아래에서 '가장 잘한
+         순간'을 고르는 데 씁니다. 기준 대비 비율이라 지표끼리 비교할 수 있습니다. */
+      const margin = (mt.cmp==='>=' ? (val-th) : (th-val)) / Math.max(th,1e-6);
+      if(margin<frameMinMargin) frameMinMargin=margin;
       if(pass) passCount++;
       else { allPass=false; if(!firstFailKey) firstFailKey=mt.key; }
     });
@@ -1346,12 +1408,34 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
   $('holdFill').style.width=(clamp(hold/HT,0,1)*100)+'%';
   $('holdLabel').textContent=hold.toFixed(1)+' / '+HT.toFixed(1)+'s';
 
-  /* 결과표는 각 지표의 따로따로 최고치가 아니라, "가장 잘했던 순간"의 값을 한 번에
-     보여줍니다. 지표별로 따오면 서로 다른 순간의 값이 섞여 실제로는 동시에 만족한 적 없는
-     조합이 '전부 통과'처럼 보일 수 있기 때문입니다. */
-  if(frameVals){
-    const score = passCount*1e6 + hold*1e3;
-    if(score>bestScore){ bestScore=score; bestSnapshot=frameVals; }
+  /* 결과표에는 지표별 '내 최고값'을 보여줍니다. 값과 판정이 어긋나지 않는 것이 핵심인데,
+     판정을 그 자리에서 같은 값으로 계산하므로 구조적으로 어긋날 수 없습니다.
+
+     원래 버그는 값은 지표별 최고치에서, 판정은 화면의 디바운스된 상태에서 따로 가져온
+     것이었습니다. 그래서 "0.23 · 기준 0.5 이상 · 통과"처럼 말이 안 되는 줄이 찍혔습니다.
+     한 순간(프레임)만 골라 보여주는 방법도 써봤지만, 표정이 바뀌는 도중의 프레임이 뽑혀
+     내내 눈을 찡그렸는데 '눈 가늘어짐 0.26 · 통과'가 나오는 등 더 헷갈렸습니다.
+
+     "조건을 다 만들었지만 유지만 못 했다"는 안내는 최고값으로 판단하면 안 됩니다.
+     서로 다른 순간의 최고값이 모이면 실제로는 동시에 만족한 적이 없는데도 전부 통과로
+     보이기 때문입니다. 그래서 '한 프레임에서 전부 통과한 적이 있는지'를 따로 기록합니다. */
+  if(frameVals && (now-timeLimitStart)>=SETTLE_SECONDS){
+    const judgesEye = currentMission.metrics.some(m=>!m.reference && m.key==='eyeSquint');
+    /* 깜빡이는 동안 눈 수치는 실측이 아니라 직전 값으로 얼어 있습니다. 그 프레임의 눈 값은
+       최고값 집계와 '전부 통과' 기록에서 모두 제외합니다. */
+    const eyeFrozen = judgesEye && metrics && metrics.eyeFrozen;
+    let framePassAll = true;
+    currentMission.metrics.filter(m=>!m.reference).forEach(mt=>{
+      const val=frameVals[mt.key];
+      if(typeof val!=='number' || !isFinite(val)) { framePassAll=false; return; }
+      if(mt.key==='eyeSquint' && eyeFrozen){ framePassAll=false; return; }
+      const prev=bestPerMetric[mt.key];
+      if(prev===undefined) bestPerMetric[mt.key]=val;
+      else bestPerMetric[mt.key] = (mt.cmp==='>=') ? Math.max(prev,val) : Math.min(prev,val);
+      const th=effThreshold(mt);
+      if(!(mt.cmp==='>=' ? val>=th : val<=th)) framePassAll=false;
+    });
+    if(framePassAll) sawAllPassFrame=true;
   }
 
   if(hold>=HT){ finishChallenge(true); return; }
@@ -1387,12 +1471,19 @@ function finishChallenge(ok){
   cancelAnimationFrame(challengeAnimId);
   lastResultOk=ok; lastResultMission=currentMission;
   const rows=$('resultRows'); rows.innerHTML='';
-  let failKey=null;
+  /* 못 넘긴 지표가 여러 개면, 목록 순서상 첫 번째가 아니라 '가장 많이 모자란' 지표를
+     짚어줍니다. 고칠 것이 하나뿐일 때 제일 도움이 되는 조언이기 때문입니다. */
+  let failKey=null, worstMargin=Infinity;
   currentMission.metrics.filter(m=>!m.reference).forEach(mt=>{
-    const val=(bestSnapshot && typeof bestSnapshot[mt.key]==='number')?bestSnapshot[mt.key]:0;
+    const val=(typeof bestPerMetric[mt.key]==='number')?bestPerMetric[mt.key]:0;
     const th=effThreshold(mt);
+    /* 판정을 바로 이 값으로 계산합니다. 값과 판정이 서로 다른 출처에서 오지 않으므로
+       둘이 어긋날 수 없습니다. */
     const pass = mt.cmp==='>=' ? val>=th : val<=th;
-    if(!pass && !failKey) failKey=mt.key;
+    if(!pass){
+      const margin = (mt.cmp==='>=' ? (val-th) : (th-val)) / Math.max(th,1e-6);
+      if(margin<worstMargin){ worstMargin=margin; failKey=mt.key; }
+    }
     const valStr = mt.isPercent ? Math.round(val*100)+'%' : val.toFixed(2);
     const thStr = (mt.cmp==='>='?'≥ ':'≤ ')+fmtThreshold(mt);
     rows.innerHTML += '<tr><td>'+mt.label.split(' · ')[0]+'</td><td><b>'+valStr+'</b></td><td>'+thStr+'</td>'+
@@ -1405,7 +1496,7 @@ function finishChallenge(ok){
   if(ok){
     $('resultDesc').innerHTML = '<b>'+currentMission.label+'</b> 미션을 '+holdSeconds().toFixed(1)+'초 동안 완벽하게 유지했어요. AI가 표정을 헷갈려 했습니다.';
     $('tipText').textContent = '완벽했어요! 다른 미션에도 도전해보세요.';
-  } else if(lastResultFailedMetric){
+  } else if(lastResultFailedMetric && !sawAllPassFrame){
     const label = lastResultFailedMetric.label.split(' · ')[0];
     $('resultDesc').innerHTML = '<b>'+label+'</b> 조건을 끝내 맞추지 못했어요. AI가 표정을 알아챘습니다.';
     $('tipText').textContent = lastResultFailedMetric.tip;
@@ -1431,6 +1522,9 @@ function startAutoReturn(seconds){
   paint();
   clearInterval(autoReturnTimer);
   autoReturnTimer=setInterval(()=>{
+    /* 결과 화면이 아니면 아무것도 하지 않고 스스로 멈춥니다. setStep에서 이미 멈추지만,
+       화면을 넘기는 동작은 되돌릴 수 없으니 여기서 한 번 더 확인합니다. */
+    if(step!=='result'){ clearInterval(autoReturnTimer); autoReturnTimer=null; autoReturnActive=false; return; }
     n--;
     if(n<=0){ clearInterval(autoReturnTimer); autoReturnTimer=null; autoReturnActive=false; goSelect(); }
     else paint();
@@ -1460,18 +1554,23 @@ $('restartBtn').addEventListener('click', ()=>{
 
 /* 추론은 30fps로 제한합니다. 120Hz 화면에서 매 프레임 추론을 시도하면 배터리와 CPU만
    태우고 정확도는 나아지지 않습니다. 실제 처리 속도(fps)도 측정해 화면에 보여줍니다. */
-const TARGET_FPS=30, MIN_SEND_GAP=1/TARGET_FPS;
-let lastSendT=0, fpsEma=0;
+/* 목표는 30fps이지만, 기기가 그 속도를 못 내면 간격을 스스로 늘립니다.
+   처리 시간보다 빠르게 요청을 밀어 넣으면 작업이 쌓여 화면 전체가 끊기고, 정작 보이는
+   영상은 오히려 더 느려집니다. 한 번 처리에 걸린 시간을 재서 그보다 느긋하게 요청합니다. */
+const TARGET_FPS=30, MIN_SEND_GAP=1/TARGET_FPS, MAX_SEND_GAP=1/12;
+let lastSendT=0, fpsEma=0, spentEma=0, sendGap=MIN_SEND_GAP;
 async function tick(){
   const v=$('video');
   const now=performance.now()/1000;
-  if(faceMesh && v && v.readyState>=2 && !processing && !document.hidden && (now-lastSendT)>=MIN_SEND_GAP){
+  if(faceMesh && v && v.readyState>=2 && !processing && !document.hidden && (now-lastSendT)>=sendGap){
     lastSendT=now;
     processing=true;
     try{ await faceMesh.send({image:v}); }
     catch(e){ /* 한 프레임 실패는 무시하고 다음 프레임에서 계속합니다 */ }
     processing=false;
     const spent=performance.now()/1000-now;
+    spentEma = spentEma ? spentEma+(spent-spentEma)*0.1 : spent;
+    sendGap = clamp(Math.max(MIN_SEND_GAP, spentEma*1.25), MIN_SEND_GAP, MAX_SEND_GAP);
     const inst=spent>0?1/Math.max(spent,1/240):TARGET_FPS;
     fpsEma = fpsEma? fpsEma+(inst-fpsEma)*0.06 : inst;
   }
