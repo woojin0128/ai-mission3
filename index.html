@@ -680,12 +680,15 @@ function anchorJump(getPt,S,now){
   const cur=ANCHOR_PTS.map(i=>getPt(i));
   let jump=0;
   if(prevAnchors && S>0){
-    const dt=now-prevAnchorT;
-    if(dt>0){
-      let maxD=0;
-      for(let i=0;i<cur.length;i++) maxD=Math.max(maxD, dist(cur[i],prevAnchors[i])/S);
-      jump=maxD/dt;
-    }
+    /* 간격으로 나눌 때 하한이 없으면 프레임이 몰려 들어오는 순간(페이지 로드 직후,
+       탭 복귀, CPU가 바쁠 때 밀렸다가 한꺼번에 처리될 때) 간격이 0에 가까워져
+       아주 작은 떨림도 엄청난 속도로 계산됩니다. 그러면 가만히 있어도 매 프레임
+       "추적이 흔들렸다"로 판정돼 유지 게이지가 영원히 안 차오릅니다.
+       실제 카메라의 최소 간격보다 아래로는 내려가지 않게 막습니다. */
+    const dt=clamp(now-prevAnchorT, 1/60, 0.5);
+    let maxD=0;
+    for(let i=0;i<cur.length;i++) maxD=Math.max(maxD, dist(cur[i],prevAnchors[i])/S);
+    jump=maxD/dt;
   }
   prevAnchors=cur; prevAnchorT=now;
   return jump;
@@ -1299,9 +1302,11 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
       const th=effThreshold(mt);
       const rawPass = mt.cmp==='>=' ? val>=th : val<=th;
       const spKey=mt.key+'_sp', sfKey=mt.key+'_sf', stKey=mt.key+'_stable';
-      const step=clamp(dt||0, 0, 0.25);
-      if(rawPass){ roundState[spKey]=(roundState[spKey]||0)+step; roundState[sfKey]=0; }
-      else { roundState[sfKey]=(roundState[sfKey]||0)+step; roundState[spKey]=0; }
+      /* 이 변수 이름은 'step'이면 안 됩니다. 전역 step(현재 화면 상태)을 가려버려서,
+         이 블록 안에서 화면 상태를 보려는 코드가 나중에 추가되면 숫자를 읽게 됩니다. */
+      const dtStep=clamp(dt||0, 0, 0.25);
+      if(rawPass){ roundState[spKey]=(roundState[spKey]||0)+dtStep; roundState[sfKey]=0; }
+      else { roundState[sfKey]=(roundState[sfKey]||0)+dtStep; roundState[spKey]=0; }
       if(roundState[stKey]===undefined) roundState[stKey]=rawPass;
       if(roundState[spKey]>=DEBOUNCE_SECONDS) roundState[stKey]=true;
       if(roundState[sfKey]>=DEBOUNCE_SECONDS) roundState[stKey]=false;
