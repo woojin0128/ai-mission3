@@ -93,7 +93,13 @@ section.step.active{display:block;}
 .ring .num span{font-size:10px;color:var(--muted);}
 .hold-label{font-size:13px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;}
 .hold-track{height:10px;border-radius:6px;background:var(--panel2);overflow:hidden;}
-.hold-fill{height:100%;background:linear-gradient(90deg,var(--pink),#ff8fc4);width:0%;}
+/* 게이지는 폭(width)이 아니라 가로 확대(transform)로 움직입니다.
+   폭을 바꾸면 매번 레이아웃을 다시 계산해야 하고, 그 계산은 자바스크립트와 같은
+   스레드에서 일어납니다. 그래서 얼굴 인식이 바쁜 순간에는 게이지가 같이 멈췄습니다.
+   transform은 합성(compositor) 단계에서 처리되므로, 메인 스레드가 인식 때문에
+   잠깐 막혀 있어도 게이지는 계속 부드럽게 흐릅니다. */
+.hold-fill{height:100%;background:linear-gradient(90deg,var(--pink),#ff8fc4);width:100%;
+  transform:scaleX(0);transform-origin:left center;will-change:transform;}
 .metric-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-top:16px;}
 .metric-box h4{margin:0 0 10px;font-size:13px;color:var(--muted);font-weight:700;}
 .metric{margin-bottom:12px;}
@@ -101,8 +107,13 @@ section.step.active{display:block;}
 .metric-top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;}
 .metric-top .name{color:var(--text);}
 .metric-top .val{font-weight:800;}
-.metric-track{height:7px;border-radius:5px;background:var(--panel2);overflow:hidden;margin-bottom:3px;}
-.metric-fill{height:100%;border-radius:5px;}
+/* 60% 지점의 옅은 세로선이 '기준선'입니다. 막대가 이 선을 넘으면 조건을 만족한 것이고,
+   넘지 말아야 하는 조건이라면 이 선 앞에서 멈춰 있어야 합니다. 모든 지표에서 같은
+   자리라서, 수치를 읽지 않고 막대만 봐도 지금 상태를 알 수 있습니다. */
+.metric-track{height:7px;border-radius:5px;overflow:hidden;margin-bottom:3px;
+  background:linear-gradient(90deg,var(--panel2) 0 calc(60% - 1px),rgba(255,255,255,0.45) calc(60% - 1px) calc(60% + 1px),var(--panel2) calc(60% + 1px) 100%);}
+.metric-fill{height:100%;border-radius:5px;width:100%;
+  transform:scaleX(0);transform-origin:left center;will-change:transform;}
 .metric-hint{font-size:10.5px;color:var(--muted);}
 .pass-badge{font-size:11px;font-weight:800;padding:2px 8px;border-radius:20px;}
 .pass-badge.ok{background:rgba(61,220,132,0.15);color:var(--good);}
@@ -200,6 +211,8 @@ table.result-table td b{font-weight:800;}
           <path id="lipShine" d="M115,195 Q150,195 185,195" fill="none" stroke="#ffd6ea" stroke-width="1" stroke-linecap="round" opacity="0.3"/>
           <circle id="dimpleL" cx="115" cy="195" r="2" fill="#e63a86" opacity="0"/>
           <circle id="dimpleR" cx="185" cy="195" r="2" fill="#e63a86" opacity="0"/>
+          <ellipse id="cheekL" cx="88" cy="168" rx="0" ry="0" fill="rgba(255,79,156,0.18)" stroke="#ff4f9c" stroke-width="1.5"/>
+          <ellipse id="cheekR" cx="212" cy="168" rx="0" ry="0" fill="rgba(255,79,156,0.18)" stroke="#ff4f9c" stroke-width="1.5"/>
           <circle cx="72" cy="150" r="3.5" fill="#ff4f9c"/>
           <circle cx="228" cy="150" r="3.5" fill="#ff4f9c"/>
           <circle cx="115" cy="195" r="3" fill="#ff4f9c"/>
@@ -269,6 +282,8 @@ const HOLD_SECONDS = 3.0, TIME_LIMIT = 20.0;
    눈을 찡그린 사람에게도 '눈 가늘어짐 0.00 · 통과'와 "조건은 다 만들었다"는 안내가
    나갔습니다. 유지 시간(3초)에는 영향이 없습니다. */
 const SETTLE_SECONDS = 0.35;
+/* 막대에서 기준선이 놓이는 위치(0~1). 트랙 눈금과 같은 값이어야 합니다. */
+const GAUGE_MARK = 0.6;
 function holdSeconds(){ return HOLD_SECONDS; }
 function timeLimit(){ return TIME_LIMIT; }
 function effThreshold(mt){ return mt.threshold; }
@@ -326,6 +341,10 @@ const LID_L_PTS=[157,158,159,160,161], LID_R_PTS=[384,385,386,387,388];   // 윗
    안쪽 끝이 서로 가까워지면(미간 찌푸림) 슬픔·화남 양쪽에 공통으로 나타납니다. */
 const BROW_IN_L=107, BROW_IN_R=336, BROW_OUT_L=70, BROW_OUT_R=300;
 const BROW_L_PTS=[70,63,105,66,107], BROW_R_PTS=[336,296,334,293,300];  // 눈썹 전체 윤곽 5점
+/* 볼. 얼굴 윤곽선에서 광대 아래(234/454) → 볼 중간(58/288) → 턱선(172/397) 세 점을 씁니다.
+   볼을 부풀리면 가운데 점이 바깥으로 밀려 윤곽이 더 둥글게 휩니다. */
+const CHEEK_L=58, CHEEK_R=288;
+const CHEEK_L_TOP=234, CHEEK_L_BOT=172, CHEEK_R_TOP=454, CHEEK_R_BOT=397;
 const ANCHOR_PTS=[33,263,1];                              // 프레임 간 일관성 검사용 안정점
 const NOSE_TIP=1, UPPER_LIP=0;          // 고개 방향 추정 / 입꼬리 기준선
 /* refineLandmarks:true 일 때만 존재하는 홍채 점. 홍채는 사람마다 크기가 거의 같은
@@ -381,6 +400,23 @@ function makeRotatedGetter(lm,w,h){
 /* 이 캔버스는 화면에서 폭 340~640px 정도로만 보입니다. 카메라 해상도 그대로 그려두고
    CSS로 줄이면, 보이지도 않는 화소를 매 프레임 칠하느라 그래픽 부하만 커집니다. */
 const OVERLAY_MAX_W=480;
+/* 카메라 화면 그리기는 '측정이 끝난 바로 그 자리'에서 하지 않고, 마지막 랜드마크만
+   기록해 두고 화면 루프에서 그립니다.
+
+   이유: MediaPipe는 send() 안에서 결과 콜백을 바로 호출합니다. 그래서 콜백 안에서 한 일이
+   모두 '인식에 걸린 시간'으로 측정되고, 그 시간으로 다음 인식 간격을 정합니다. 즉 그리기가
+   무거울수록 인식을 덜 하게 되는 악순환이 있었습니다. 그리기를 콜백 밖으로 빼면 측정된
+   인식 시간이 실제 인식 비용만 반영하므로, 느린 기기에서도 측정 횟수가 덜 떨어집니다.
+   덤으로 화면에는 더 최신 영상 프레임이 그려집니다. */
+let pendingLm=null, pendingW=0, pendingH=0, pendingDirty=false;
+function queueCameraView(lm,w,h){
+  pendingLm=lm; if(w) pendingW=w; if(h) pendingH=h; pendingDirty=true;
+}
+function flushCameraView(){
+  if(!pendingDirty) return;
+  pendingDirty=false;
+  renderCameraView(pendingLm, pendingW, pendingH);
+}
 function renderCameraView(lm,w,h){
   /* 카메라 화면은 도전 화면에만 있습니다. 무표정 기준을 잡는 동안에도 매 프레임 그리고
      있었지만, 그때는 아무도 볼 수 없는 캔버스였습니다. 얼굴 인식 자체는 그리기와 무관하게
@@ -505,15 +541,39 @@ function computeMAR(getPt,S){
 function computeMouthWidthNorm(getPt,S){const l=getPt(MOUTH_L),r=getPt(MOUTH_R);return S?dist(l,r)/S:0;}
 /* 눈썹과 윗눈꺼풀 사이 거리. 웃을 때 자연히 올라가는 광대와 달리 의식적으로 조절 가능한 지표라
    "입만 웃기" 판정 기준으로 사용합니다. */
-function computeBrowGap(getPt,S){
+function browGapSide(getPt,S,browPts,lidPts){
   if(!S) return 0;
-  const side=(browPts,lidPts)=>{
-    let by=0, ly=0;
-    for(let i=0;i<browPts.length;i++) by+=getPt(browPts[i]).y;
-    for(let i=0;i<lidPts.length;i++)  ly+=getPt(lidPts[i]).y;
-    return (ly/lidPts.length)-(by/browPts.length);
-  };
-  return ((side(BROW_L_PTS,LID_L_PTS)+side(BROW_R_PTS,LID_R_PTS))/2)/S;
+  let by=0, ly=0;
+  for(let i=0;i<browPts.length;i++) by+=getPt(browPts[i]).y;
+  for(let i=0;i<lidPts.length;i++)  ly+=getPt(lidPts[i]).y;
+  return ((ly/lidPts.length)-(by/browPts.length))/S;
+}
+function computeBrowGapL(getPt,S){ return browGapSide(getPt,S,BROW_L_PTS,LID_L_PTS); }
+function computeBrowGapR(getPt,S){ return browGapSide(getPt,S,BROW_R_PTS,LID_R_PTS); }
+function computeBrowGap(getPt,S){
+  return (computeBrowGapL(getPt,S)+computeBrowGapR(getPt,S))/2;
+}
+/* 볼 너비. 윤곽선 좌우 볼 중간점 사이 거리. 볼을 부풀리면 넓어집니다.
+   긴 거리를 재기 때문에 랜드마크 떨림에 둔합니다(노이즈가 작습니다). */
+function computeCheekWidth(getPt,S){
+  if(!S) return 0;
+  return dist(getPt(CHEEK_L), getPt(CHEEK_R))/S;
+}
+/* 볼이 바깥으로 부푼 양. 광대 아래와 턱선을 이은 '현'에서 볼 중간점까지의 수직 거리입니다.
+   수직 거리라서 고개를 기울여도 값이 바뀌지 않고, 얼굴 폭으로 나누므로 거리와도 무관합니다.
+   너비만 보면 턱을 벌리거나 고개를 돌려도 늘어날 수 있는데, 이 '휘어짐'은 볼 표면이 실제로
+   밀려나왔을 때만 커지기 때문에 둘을 함께 보면 부풀림을 훨씬 분명하게 가릴 수 있습니다. */
+function cheekSagitta(getPt,aIdx,midIdx,bIdx,S){
+  if(!S) return 0;
+  const A=getPt(aIdx), B=getPt(bIdx), M=getPt(midIdx);
+  const vx=B.x-A.x, vy=B.y-A.y;
+  const len=Math.hypot(vx,vy);
+  if(!(len>0)) return 0;
+  return Math.abs((M.x-A.x)*vy - (M.y-A.y)*vx)/len/S;
+}
+function computeCheekBulge(getPt,S){
+  return (cheekSagitta(getPt,CHEEK_L_TOP,CHEEK_L,CHEEK_L_BOT,S)
+         +cheekSagitta(getPt,CHEEK_R_TOP,CHEEK_R,CHEEK_R_BOT,S))/2;
 }
 /* 미간 너비. 슬프거나 화날 때 눈썹 안쪽이 서로 당겨져 좁아집니다.
    웃음 근육(광대)과는 완전히 다른 근육이라, 웃는 것만으로는 변하지 않습니다.
@@ -540,7 +600,8 @@ function computeCornerRise(getPt,S,idx){
   return (getPt(UPPER_LIP).y - getPt(idx).y)/S;
 }
 /* 측정 채널마다 One-Euro 필터를 하나씩 둡니다. */
-const FILTER_KEYS=['lidL','lidR','mar','mouthWidth','browGap','riseL','riseR','yaw','pitch','browKnit','browSlant'];
+const FILTER_KEYS=['lidL','lidR','mar','mouthWidth','browGap','riseL','riseR','yaw','pitch','browKnit','browSlant',
+  'browGapL','browGapR','cheekWidth','cheekBulge'];
 const filters={};
 FILTER_KEYS.forEach(k=>filters[k]=makeFilter());
 function pushSmooth(key,val,dt){ return filterPush(filters[key], val, dt); }
@@ -553,7 +614,9 @@ function primeFilters(){
   });
 }
 
-let baseline={lidL:0.055,lidR:0.055,mouthWidth:0.40,browGap:0.075,riseL:-0.055,riseR:-0.055,yaw:0.5,pitch:0.30,browKnit:0.13,browSlant:0.0};
+let baseline={lidL:0.055,lidR:0.055,mouthWidth:0.40,browGap:0.075,riseL:-0.055,riseR:-0.055,
+  yaw:0.5,pitch:0.30,browKnit:0.13,browSlant:0.0,
+  cheekWidth:0.86,cheekBulge:0.055,browGapL:0.075,browGapR:0.075};
 let calibSamples=null;
 /* yawRaw / widthRaw 는 기준값 계산에는 쓰지 않고, "준비 시간 동안 가만히 있었는지"를
    판정할 때만 씁니다. 필터를 거친 값으로 흔들림을 재면 필터가 흔들림을 지워버려서
@@ -564,7 +627,8 @@ function startCalibration(){
   /* 필터 초기화를 여기서 함께 합니다. 호출하는 쪽에서 따로 불러주도록 두면 언젠가
      빠뜨리게 되고, 그러면 직전 사람의 얼굴 값이 필터에 남아 새 기준에 섞여 들어갑니다. */
   resetSmooth(); resetAnchors();
-  calibSamples={lidL:[],lidR:[],mouthWidth:[],browGap:[],riseL:[],riseR:[],yaw:[],pitch:[],browKnit:[],browSlant:[],yawRaw:[],widthRaw:[]};
+  calibSamples={lidL:[],lidR:[],mouthWidth:[],browGap:[],riseL:[],riseR:[],yaw:[],pitch:[],
+    browKnit:[],browSlant:[],cheekWidth:[],cheekBulge:[],browGapL:[],browGapR:[],yawRaw:[],widthRaw:[]};
 }
 /* 캘리브레이션 중의 눈 깜빡임은 "평소 눈 크기"를 실제보다 작게 만들어 기준을 망칩니다.
    그래서 깜빡이는 프레임은 표본에서 제외합니다. */
@@ -619,6 +683,9 @@ function finishCalibration(){
      0이면 이후 모든 나눗셈이 무너지므로 그때만 거부합니다. 자세가 조금 틀어졌거나 얼굴이
      흔들린 건 거부 사유가 아닙니다 — 그 판정을 현실에 맞게 세우는 데 두 번 실패했고,
      틀렸을 때의 대가가 "아예 못 함"이라 너무 큽니다. */
+  /* 새로 추가한 볼·눈썹 좌우 지표는 일부러 이 목록에 넣지 않습니다. 여기에 넣으면 그 값
+     하나가 이상할 때 시작 자체가 막힙니다. 기준값이 없으면 해당 점수 함수가 0을 돌려주고,
+     그 미션만 어려워질 뿐 다른 미션과 시작에는 영향이 없습니다. */
   const needed=['lidL','lidR','mouthWidth','browGap','riseL','riseR','pitch','browKnit'];
   const usable = needed.every(k=>isFinite(next[k])) &&
                  next.lidL>0 && next.lidR>0 && next.mouthWidth>0 &&
@@ -701,6 +768,51 @@ function scoreSadBrow(browKnit, browSlant){
 }
 function scoreBrowDrop(browGap){ if(!baseline.browGap) return 0; return clamp((1-browGap/baseline.browGap)/0.26,0,1); }
 
+/* ── 볼 부풀림 ────────────────────────────────────────────────────────────────
+   분모는 "온 힘으로 부풀렸을 때" 대략의 변화량입니다. 점수 1.0이 완전히 부푼 상태,
+   0.5가 절반입니다.
+   너비(_W)와 휘어짐(_B) 두 신호를 함께 보는데, 가중치는 노이즈 비율에 맞춰 정했습니다.
+   처음에는 "긴 거리를 재는 너비가 떨림에 강하니 너비에 무게를 두자"고 생각했는데,
+   실제로 재 보니 반대였습니다. 같은 떨림에서 두 신호의 잡음은 비슷한데(약 2.3%),
+   볼을 부풀렸을 때 변하는 양은 휘어짐이 훨씬 큽니다(너비 약 17%, 휘어짐 약 92%).
+   즉 신호 대 잡음비가 휘어짐이 약 5.7배 좋습니다. 그래서 휘어짐에 무게를 둡니다.
+   너비는 턱을 벌려도 늘어날 수 있어 확인용으로만 섞습니다.
+
+   분모는 사람의 실제 움직임을 보수적으로 잡았습니다(측정 모델의 40~60% 수준에서도
+   1.0이 나오도록). 기준이 0.5이므로, 제대로 부풀리면 넉넉히 넘고 어설프게 부풀리면
+   넘지 못합니다. 이 분모는 실제 얼굴에서 한 번 더 맞춰볼 여지가 있습니다. */
+const CHEEK_FULL_W=0.10, CHEEK_FULL_B=0.40, CHEEK_W_WEIGHT=0.30;
+function scoreCheekPuff(cheekWidth, cheekBulge){
+  const bw=baseline.cheekWidth, bb=baseline.cheekBulge;
+  let wRel=0, bRel=0, wOk=false, bOk=false;
+  if(isFinite(bw) && bw>0 && isFinite(cheekWidth)){ wRel=cheekWidth/bw-1; wOk=true; }
+  if(isFinite(bb) && bb>0 && isFinite(cheekBulge)){ bRel=cheekBulge/bb-1; bOk=true; }
+  if(!wOk && !bOk) return 0;
+  /* 한쪽 기준값이 없으면(측정이 성립하지 않은 얼굴) 있는 쪽만으로 계산합니다.
+     새 지표 때문에 시작조차 못 하는 일이 생기지 않게 하는 것이 우선입니다. */
+  if(!bOk) return clamp(wRel/CHEEK_FULL_W, 0, 1);
+  if(!wOk) return clamp(bRel/CHEEK_FULL_B, 0, 1);
+  return clamp((wRel/CHEEK_FULL_W)*CHEEK_W_WEIGHT + (bRel/CHEEK_FULL_B)*(1-CHEEK_W_WEIGHT), 0, 1);
+}
+
+/* ── 눈썹 좌우 비대칭 ─────────────────────────────────────────────────────────
+   한쪽 눈썹만 올리면 '눈썹-눈꺼풀 거리'가 좌우로 벌어집니다. 사람마다 원래 눈썹 높이가
+   조금씩 다르므로, 무표정일 때의 좌우 차이를 기준으로 삼고 '그보다 얼마나 더 벌어졌는지'만
+   봅니다. 그래서 짝눈썹인 사람도 불리하지 않습니다.
+   고개를 기울여 속이는 것은 측정 전에 회전 보정을 거치기 때문에 통하지 않습니다. */
+const BROW_ASYM_FULL=0.040;
+function scoreBrowAsym(gapL, gapR){
+  const bl=baseline.browGapL, br=baseline.browGapR;
+  if(!(isFinite(bl)&&isFinite(br)&&isFinite(gapL)&&isFinite(gapR))) return 0;
+  const d=(gapL-gapR)-(bl-br);
+  return clamp(Math.abs(d)/BROW_ASYM_FULL, 0, 1);
+}
+/* 한쪽 눈썹이 무표정 대비 올라갔는지(+) 내려갔는지(-). 참고 표시용입니다. */
+function scoreBrowRaise(gap, base){
+  if(!(isFinite(base)&&base>0&&isFinite(gap))) return 0;
+  return clamp((gap/base-1)/0.22, -1, 1);
+}
+
 /* ── 프레임 간 일관성 ─────────────────────────────────────────────────────────
    얼굴 검출기는 추적을 놓쳤다가 다시 잡을 때 랜드마크가 순간적으로 크게 튑니다.
    그 프레임의 수치는 실제 표정이 아니라 검출 오류인데, 예전에는 그대로 점수가 됐습니다.
@@ -772,24 +884,26 @@ const MISSIONS=[
         tip:'눈썹을 눈에서 멀찍이 띄운 채로 유지하세요. 눈썹이 눈 쪽으로 내려오면 걸립니다.'}
     ]
   },
-  { id:'cry_smile', label:'울면서 웃기', desc:'입은 활짝 웃고, 눈썹은 울 것 같은 표정을 동시에 지으세요.',
-    explain:'AI는 표정을 하나의 감정으로 분류하도록 배웠습니다. 그래서 얼굴 위아래가 서로 다른 감정을 가리키면 어느 쪽으로도 확정하지 못해요. 입꼬리를 올리는 광대 근육과 눈썹을 찌푸리거나 안쪽을 끌어올리는 근육은 서로 완전히 독립적이라, 두 감정을 한 얼굴에 동시에 올릴 수 있습니다. 실제로 사람도 이 표정을 가장 헷갈려 합니다.',
+  { id:'sad_puffer', label:'슬픈 복어', desc:'눈썹은 울 것 같은 표정으로, 볼은 빵빵하게 부풀리세요.',
+    explain:'AI는 표정을 하나의 감정으로 분류하도록 배웠습니다. 울 것 같은 눈썹은 슬픔을, 빵빵하게 부푼 볼은 슬픔과 전혀 상관없는 우스꽝스러운 상태를 가리킵니다. 게다가 볼을 부풀리려면 입을 꽉 닫고 공기를 물어야 해서, 감정 표현에 쓰이는 입 모양이 아예 사라집니다. AI가 가장 크게 의존하는 입에서는 아무 감정도 읽히지 않는데 눈썹만 슬픔을 가리키는, 분류가 성립하지 않는 얼굴이 됩니다.',
     metrics:[
-      {key:'mouthSmile', label:'입꼬리 올림 · mouthSmile', cmp:'>=', threshold:0.5, get:m=>m.mouthSmile,
-        tip:'입꼬리를 옆으로 더 확실히 당겨 보세요. 눈썹은 그대로 둔 채 입만 웃는 게 핵심입니다.'},
       {key:'sadBrow', label:'슬픈 눈썹 · sadBrow', cmp:'>=', threshold:0.45, get:m=>m.sadBrow,
         tip:'미간을 찡그리거나, 눈썹 안쪽 끝을 위로 끌어올려 보세요(울기 직전 표정). 둘 중 잘 되는 쪽이면 됩니다.'},
-      {key:'browGap', label:'눈썹 내려옴 · browDrop', get:m=>m.browDrop, reference:true}
+      {key:'cheekPuff', label:'볼 부풀림 · cheekPuff', cmp:'>=', threshold:0.5, get:m=>m.cheekPuff,
+        tip:'입을 꽉 닫고 공기를 물어 양쪽 볼을 동시에 빵빵하게 부풀리세요. 한쪽만 부풀리면 수치가 절반밖에 오르지 않습니다.'},
+      {key:'mouthSmile', label:'입은 웃지 않기 · mouthSmile', cmp:'<=', threshold:0.45, get:m=>m.mouthSmile,
+        tip:'입꼬리를 옆으로 당기지 마세요. 웃으면 볼이 올라가서 부풀린 것과 비슷해 보이는데, 그건 복어가 아닙니다.'}
     ]
   },
-  { id:'half_smile', label:'한쪽만 웃기', desc:'한쪽 입꼬리만 확실히 올리고 반대쪽은 그대로 두세요.',
-    explain:'웃음 근육은 좌우가 한 쌍으로 함께 수축하도록 연결돼 있어서, AI도 표정이 좌우 대칭이라는 전제 위에서 학습합니다. 한쪽만 올린 비대칭 미소는 그 전제를 정면으로 깨뜨려, AI가 웃는 표정인지 아닌지조차 확정하지 못하게 만들어요. 어느 쪽을 올려도 상관없습니다.',
+  { id:'brow_asym', label:'눈썹 비대칭', desc:'한쪽 눈썹만 올려서 두 눈썹의 높이를 서로 다르게 만드세요.',
+    explain:'얼굴 근육은 좌우가 한 쌍으로 함께 움직이도록 연결돼 있고, AI도 표정이 좌우 대칭이라는 전제 위에서 학습합니다. 눈썹은 그 전제를 깨기 가장 어려운 부위입니다. 한쪽 눈썹만 올린 얼굴은 AI가 배운 어떤 감정 패턴에도 들어맞지 않아, 표정인지 아닌지조차 확정하지 못하게 만듭니다. 어느 쪽을 올려도 됩니다. 반대쪽이 따라 올라가려 하면 손가락으로 가볍게 눌러 고정하는 연습이 도움이 됩니다.',
     metrics:[
-      {key:'smirkHigh', label:'올린 쪽 입꼬리 · cornerLift', cmp:'>=', threshold:0.55, get:m=>m.smirkHigh,
-        tip:'한쪽 입꼬리만 대각선 위로, 귀 쪽을 향해 당긴다는 느낌으로 확실히 올려 보세요.'},
-      {key:'smirkLow', label:'반대쪽 입꼬리 · cornerLift', cmp:'<=', threshold:0.25, get:m=>m.smirkLow,
-        tip:'반대쪽은 완전히 힘을 빼세요. 손가락으로 반대쪽 입꼬리를 가볍게 눌러 고정하는 연습이 도움이 됩니다.'},
-      {key:'smirkGap', label:'좌우 차이 · asymmetry', get:m=>m.smirkHigh-m.smirkLow, reference:true}
+      {key:'browAsym', label:'좌우 눈썹 높이차 · browAsym', cmp:'>=', threshold:0.5, get:m=>m.browAsym,
+        tip:'한쪽 눈썹만 이마 쪽으로 확실히 끌어올리세요. 두 눈썹이 같이 올라가면 높이차가 생기지 않아 통과되지 않습니다.'},
+      /* 카메라 화면은 거울처럼 좌우가 뒤집혀 보입니다. 그래서 측정상 '왼쪽'(browGapL)은
+         화면에서는 오른쪽에 나타납니다. 사용자가 보는 기준으로 이름을 붙입니다. */
+      {key:'browRaiseR', label:'화면 왼쪽 눈썹 · 올라간 정도', get:m=>m.browRaiseR, reference:true},
+      {key:'browRaiseL', label:'화면 오른쪽 눈썹 · 올라간 정도', get:m=>m.browRaiseL, reference:true}
     ]
   }
 ];
@@ -1088,7 +1202,7 @@ function startChallenge(){
   timeLimitStart=performance.now()/1000;
   $('challengeMissionTitle').textContent=currentMission.label;
   setFeedback('', '얼굴을 화면 중앙에 맞춰주세요');
-  $('holdFill').style.width='0%';
+  /* 유지 게이지 초기화는 buildMetricRows → resetGauges에서 함께 합니다. */
   $('holdLabel').textContent='0.0 / '+holdSeconds().toFixed(1)+'s';
   buildMetricRows();
   setStep('challenge');
@@ -1104,35 +1218,20 @@ function startChallenge(){
    있었습니다(MediaPipe가 send() 안에서 콜백을 바로 호출하기 때문입니다).
    이제 측정은 인식 속도대로, 그리기는 화면 속도(초당 30번)로 따로 돌립니다.
    판정·숫자는 측정값 그대로 쓰고, 부드럽게 만드는 것은 막대 폭뿐입니다. */
-let metricEls={}, gaugeTarget={}, gaugePrev={}, gaugeShown={}, gaugeColor={}, holdFillEl=null;
-let holdTarget=0, holdPrev=0, holdShown=0;
-/* 측정이 들어온 시각과 측정 간격. 막대는 '직전 측정값에서 새 측정값까지'를 그 간격에 걸쳐
-   고르게 이동합니다. 이렇게 하면 측정이 초당 12번이든 30번이든 막대는 화면 속도로
-   끊김 없이 움직입니다. 지수 감쇠로 부드럽게 하려 했지만, 수렴이 간격보다 빨라서 막대가
-   도착한 뒤 다음 측정까지 멈춰 있다가 또 튀는 '계단'이 남았습니다. */
-let gaugeStartT=0, gaugeDur=1/30, gaugeIntervalEma=0, lastTargetT=0;
+let metricEls={}, gaugeTarget={}, gaugeColor={}, holdFillEl=null;
+let holdTarget=0, holdShown=0;
+/* 측정 간격의 이동평균. 게이지 이동 시간을 여기에 맞춥니다. */
+let gaugeIntervalEma=0, lastTargetT=0;
 function resetGauges(){
-  metricEls={}; gaugeTarget={}; gaugePrev={}; gaugeShown={}; gaugeColor={};
-  holdTarget=0; holdPrev=0; holdShown=0;
-  gaugeStartT=0; gaugeDur=1/30; gaugeIntervalEma=0; lastTargetT=0;
+  metricEls={}; gaugeTarget={}; gaugeColor={};
+  holdTarget=0; holdShown=0;
+  gaugeIntervalEma=0; lastTargetT=0;
   holdFillEl=$('holdFill');
-  if(holdFillEl){ holdFillEl.style.width='0%'; delete holdFillEl.dataset.w; }
-}
-/* 측정이 한 번 끝날 때마다 호출됩니다. 지금 화면에 보이는 위치를 출발점으로 삼아야
-   이미 이동 중이던 막대가 뒤로 튀지 않습니다. */
-function markGaugeUpdate(now){
-  if(lastTargetT){
-    const gap=clamp(now-lastTargetT, 1/60, 0.2);
-    gaugeIntervalEma = gaugeIntervalEma ? gaugeIntervalEma+(gap-gaugeIntervalEma)*0.2 : gap;
+  if(holdFillEl){
+    holdFillEl.style.transitionDuration='0ms';
+    holdFillEl.style.transform='scaleX(0)';
+    holdFillEl.dataset.d='0ms'; holdFillEl.dataset.t='scaleX(0.0000)';
   }
-  lastTargetT=now;
-  gaugeStartT=now;
-  gaugeDur=clamp(gaugeIntervalEma||1/30, 1/60, 0.2);
-  for(const key in metricEls){
-    const v=gaugeShown[key];
-    gaugePrev[key]=(typeof v==='number'&&isFinite(v))?v:0;
-  }
-  holdPrev=holdShown;
 }
 function buildMetricRows(){
   const list=$('metricsList'); list.innerHTML='';
@@ -1143,7 +1242,7 @@ function buildMetricRows(){
       '<div class="metric-top"><span class="name">'+mt.label+'</span>'+
       (mt.reference ? '<span class="val" id="val-'+mt.key+'">0.00</span>' :
         '<span><span class="pass-badge ok" id="badge-'+mt.key+'">통과</span> <span class="val" id="val-'+mt.key+'">0.00</span></span>')+
-      '</div><div class="metric-track"><div class="metric-fill" id="fill-'+mt.key+'" style="background:var(--good);width:0%"></div></div>'+
+      '</div><div class="metric-track"><div class="metric-fill" id="fill-'+mt.key+'" style="background:var(--good)"></div></div>'+
       '<div class="metric-hint">'+(mt.reference ? '참고용' : (fmtThreshold(mt)+(mt.cmp==='>='?' 이상이어야 해요':' 이하여야 해요')))+'</div>';
     list.appendChild(row);
     metricEls[mt.key]={ fill:$('fill-'+mt.key), val:$('val-'+mt.key), badge:$('badge-'+mt.key),
@@ -1181,7 +1280,13 @@ function onResults(results){
 
     const mar=pushSmooth('mar',computeMAR(rot.get,S),dt);
     const mouthWidth=pushSmooth('mouthWidth',computeMouthWidthNorm(rot.get,S),dt);
-    const browGap=pushSmooth('browGap',computeBrowGap(rot.get,S),dt);
+    /* 눈썹 높이는 좌우를 따로 재서 비대칭 미션에 씁니다. 평균(browGap)은 두 값에서
+       바로 만들어 쓰므로, 같은 신호를 두 번 필터에 넣지 않습니다. */
+    const browGapL=pushSmooth('browGapL',computeBrowGapL(rot.get,S),dt);
+    const browGapR=pushSmooth('browGapR',computeBrowGapR(rot.get,S),dt);
+    const browGap=(browGapL+browGapR)/2;
+    const cheekWidth=pushSmooth('cheekWidth',computeCheekWidth(rot.get,S),dt);
+    const cheekBulge=pushSmooth('cheekBulge',computeCheekBulge(rot.get,S),dt);
     const browKnit=pushSmooth('browKnit',computeBrowKnit(rot.get,S),dt);
     const browSlant=pushSmooth('browSlant',computeBrowSlant(rot.get,S),dt);
     const riseL=pushSmooth('riseL',computeCornerRise(rot.get,S,MOUTH_L),dt);
@@ -1194,7 +1299,7 @@ function onResults(results){
     const yaw=pushSmooth('yaw',yawRaw,dt);
     const pitch=pushSmooth('pitch',pitchRaw,dt);
 
-    renderCameraView(lm,w,h);
+    queueCameraView(lm,w,h);
     const jump=anchorJump(rot.get,S,now);
 
     if(calibSamples){
@@ -1206,6 +1311,7 @@ function onResults(results){
       const cq=calibQuality(S,yawRaw,jump,true);
       showCalibHint(cq.ok?'ok':'warn', cq.why);
       feedCalibration({lidL,lidR,mouthWidth,browGap,riseL,riseR,yaw,pitch,browKnit,browSlant,
+        cheekWidth,cheekBulge,browGapL,browGapR,
         yawRaw:yawRaw, widthRaw:computeMouthWidthNorm(rot.get,S)});
     }
 
@@ -1222,8 +1328,10 @@ function onResults(results){
       sadBrow: scoreSadBrow(browKnit, browSlant),
       cornerL: liftL,
       cornerR: liftR,
-      smirkHigh: Math.max(liftL,liftR),
-      smirkLow: Math.min(liftL,liftR),
+      cheekPuff: scoreCheekPuff(cheekWidth, cheekBulge),
+      browAsym: scoreBrowAsym(browGapL, browGapR),
+      browRaiseL: scoreBrowRaise(browGapL, baseline.browGapL),
+      browRaiseR: scoreBrowRaise(browGapR, baseline.browGapR),
       mar: mar
     };
     MOTION_KEYS.forEach(k=>{ targetMetrics[k]=metrics[k]; });
@@ -1244,7 +1352,7 @@ function onResults(results){
   } else {
     lastFrameT=null; resetAnchors();
     faceLostDecay=true;
-    renderCameraView(null, w, h);
+    queueCameraView(null, w, h);
     $('trackStatus').innerHTML='<span class="track-dot" style="background:var(--bad);"></span><span>얼굴이 검출되지 않았습니다</span>';
     $('trackStatus').style.color='var(--bad)';
     if(step==='challenge') evaluateChallenge(null,false,{ok:false,why:''},0);
@@ -1253,8 +1361,8 @@ function onResults(results){
 
 /* --- 얼굴 스키매틱 애니메이션: 실제 인식값(targetMetrics)을 부드럽게 보간(lerp)하여
    프레임 노이즈나 인식 프레임 저하와 무관하게 표정 모션이 자연스럽게 보이도록 처리 --- */
-const MOTION_KEYS=['mouthSmile','eyeSquint','browDrop','sadBrow','cornerL','cornerR','smirkHigh','smirkLow','mar'];
-const DECAY_KEYS=['mouthSmile','eyeSquint','browDrop','sadBrow','cornerL','cornerR','smirkHigh','smirkLow','mar'];
+const MOTION_KEYS=['mouthSmile','eyeSquint','browDrop','sadBrow','cornerL','cornerR','mar','cheekPuff','browAsym','browRaiseL','browRaiseR'];
+const DECAY_KEYS=['mouthSmile','eyeSquint','browDrop','sadBrow','cornerL','cornerR','mar','cheekPuff','browAsym','browRaiseL','browRaiseR'];
 function zeroMetrics(){ const o={}; MOTION_KEYS.forEach(k=>o[k]=0); return o; }
 let targetMetrics=zeroMetrics();
 let displayMetrics=zeroMetrics();
@@ -1282,11 +1390,29 @@ function renderFaceSvg(raw, blinkVal, tNow){
   const browDrop=Math.max(m.eyeSquint*0.5, m.browDrop)*9;
   const sad=m.sadBrow;
   const innerUp=sad*11, knitIn=sad*7;
+  /* 좌우 눈썹을 따로 올립니다. 대칭이면 두 값이 같아 전과 똑같이 보이고, 한쪽만 올리면
+     그림에서도 실제로 한쪽만 올라갑니다. '눈썹 비대칭' 미션에서 수치를 읽지 않고도
+     지금 어느 쪽이 올라갔는지 눈으로 확인할 수 있어야 하기 때문입니다.
+     카메라 화면이 거울처럼 뒤집혀 보이므로, 그림의 왼쪽 눈썹에는 측정상 오른쪽(browRaiseR)
+     값을 연결해 화면에서 보이는 쪽과 일치시킵니다. */
+  const raiseSvgL=m.browRaiseR*10;        // 그림 왼쪽 ← 측정상 오른쪽(거울 반전)
+  const raiseSvgR=m.browRaiseL*10;
   // SVG 기준 왼쪽 눈썹은 M90(바깥) → 130(안쪽)
-  const lOut=95+browDrop*0.4, lIn=95+browDrop*0.4-innerUp;
-  const rOut=95+browDrop*0.4, rIn=95+browDrop*0.4-innerUp;
-  browL.setAttribute('d','M90,'+lOut.toFixed(1)+' Q110,'+(82+browDrop-innerUp*0.45).toFixed(1)+' '+(130+knitIn).toFixed(1)+','+lIn.toFixed(1));
-  browR.setAttribute('d','M210,'+rOut.toFixed(1)+' Q190,'+(82+browDrop-innerUp*0.45).toFixed(1)+' '+(170-knitIn).toFixed(1)+','+rIn.toFixed(1));
+  const lOut=95+browDrop*0.4-raiseSvgL, lIn=95+browDrop*0.4-innerUp-raiseSvgL;
+  const rOut=95+browDrop*0.4-raiseSvgR, rIn=95+browDrop*0.4-innerUp-raiseSvgR;
+  browL.setAttribute('d','M90,'+lOut.toFixed(1)+' Q110,'+(82+browDrop-innerUp*0.45-raiseSvgL).toFixed(1)+' '+(130+knitIn).toFixed(1)+','+lIn.toFixed(1));
+  browR.setAttribute('d','M210,'+rOut.toFixed(1)+' Q190,'+(82+browDrop-innerUp*0.45-raiseSvgR).toFixed(1)+' '+(170-knitIn).toFixed(1)+','+rIn.toFixed(1));
+
+  /* 볼 부풀림. 부풀린 만큼 양쪽 볼이 실제로 커집니다. */
+  const cheekL=$('cheekL'), cheekR=$('cheekR');
+  if(cheekL && cheekR){
+    const puff=clamp(m.cheekPuff,0,1);
+    const crx=(puff*20).toFixed(1), cry=(puff*16).toFixed(1);
+    cheekL.setAttribute('rx',crx); cheekL.setAttribute('ry',cry);
+    cheekR.setAttribute('rx',crx); cheekR.setAttribute('ry',cry);
+    const op=clamp(puff*1.2,0,1).toFixed(2);
+    cheekL.setAttribute('opacity',op); cheekR.setAttribute('opacity',op);
+  }
 
   // subtle idle sway so the mouth model never looks perfectly frozen (cosmetic only)
   const cx = 150 + Math.sin(tNow/1400)*0.6;
@@ -1346,22 +1472,19 @@ function faceAnimLoop(now){
     requestAnimationFrame(faceAnimLoop);
     return;
   }
-  /* 막대는 매 프레임 그립니다. 폭 문자열 몇 개를 바꾸는 것뿐이라 비용이 거의 없고,
-     화면 속도 그대로 움직이는 것이 가장 부드럽습니다. 비싼 것은 캐릭터 얼굴(SVG)이고
-     그것만 초당 30번으로 제한합니다. */
-  paintGauges();
   /* 1ms 여유를 둡니다. 60Hz 화면에서 한 프레임은 16.67ms인데, 두 프레임(33.33ms)이
      33.333ms보다 간발의 차로 작아서 매번 건너뛰고 세 프레임(50ms)마다 그려졌습니다.
      초당 30번을 의도했는데 실제로는 20번이었습니다. */
   if(now-lastSvgT < SVG_MIN_GAP-1){ requestAnimationFrame(faceAnimLoop); return; }
   lastSvgT=now;
+  flushCameraView();
   const dt=Math.min(60, now-lastAnimT); lastAnimT=now;
   if(faceLostDecay){
     DECAY_KEYS.forEach(k=>{ targetMetrics[k]*=0.93; });
   }
   const k=1-Math.pow(0.001, dt/1000);
   // 입 관련 채널은 눈/눈썹보다 더 빠르게 추종합니다 — 화면에서 "제대로 보여야" 하는 부분이라서.
-  const speedMul={mouthSmile:4.2, mar:4.6, cornerL:4.4, cornerR:4.4, smirkHigh:4.4, smirkLow:4.4, eyeSquint:3.4, browDrop:3.4};
+  const speedMul={mouthSmile:4.2, mar:4.6, cornerL:4.4, cornerR:4.4, eyeSquint:3.4, browDrop:3.4, cheekPuff:4.0};
   MOTION_KEYS.forEach(key=>{
     const t=targetMetrics[key];
     if(!isFinite(t)) return;
@@ -1380,39 +1503,46 @@ function faceAnimLoop(now){
   renderFaceSvg(displayMetrics, blinkVal, now);
   requestAnimationFrame(faceAnimLoop);
 }
+/* 화면 루프 시작. 이 한 줄이 없으면 캐릭터 얼굴도, 카메라 오버레이도 전혀 그려지지
+   않습니다(판정은 멈추지 않기 때문에 테스트는 통과해서 조용히 넘어갈 수 있습니다). */
+requestAnimationFrame(faceAnimLoop);
 
-/* 막대를 화면 속도로 부드럽게 움직입니다. 목표값은 얼굴 인식이 갱신하고, 그 사이의
-   프레임을 여기서 채웁니다. 인식이 초당 12번으로 떨어져도 막대는 초당 30번 움직입니다.
+/* 게이지에 '목표'를 한 번만 적어 주면, 브라우저가 그 사이를 합성 단계에서 채웁니다.
+   이동 시간은 측정 간격에 맞춥니다 — 다음 측정이 도착할 때쯤 도착하도록 하면 끊김 없이
+   이어지고, 간격이 들쭉날쭉해도 알아서 맞춰집니다.
 
-   유지 게이지가 '줄어들 때'는 부드럽게 하지 않고 즉시 0으로 떨어뜨립니다. 자세가 깨진
-   순간을 그대로 알려주는 것이 맞고, 천천히 빠지면 아직 진행도가 남은 줄 알게 됩니다. */
-function paintGauges(){
-  if(!gaugeStartT) return;
-  const now=performance.now()/1000;
-  /* 측정 간격을 조금 넘겨도 1을 넘지 않게 묶습니다. 다음 측정이 늦어지면 막대는 목표에
-     도착한 채로 기다립니다(뒤로 가거나 넘어가지 않습니다). */
-  const a=clamp((now-gaugeStartT)/gaugeDur, 0, 1);
+   예전에는 매 프레임 자바스크립트로 폭을 계산해 써 넣었습니다. 그 방식은 메인 스레드가
+   얼굴 인식으로 막히면 같이 멈춰서, 느린 노트북에서 게이지가 뚝뚝 끊겼습니다. */
+function setGauge(el, v, durMs, snap){
+  if(!el) return;
+  const t='scaleX('+clamp(v,0,1).toFixed(4)+')';
+  const d=(snap?0:Math.round(durMs))+'ms';
+  if(el.dataset.d!==d){ el.style.transitionProperty='transform';
+    el.style.transitionTimingFunction='linear'; el.style.transitionDuration=d; el.dataset.d=d; }
+  if(el.dataset.t!==t){ el.style.transform=t; el.dataset.t=t; }
+}
+function applyGauges(now){
+  if(lastTargetT){
+    const gap=clamp(now-lastTargetT, 1/60, 0.2);
+    gaugeIntervalEma = gaugeIntervalEma ? gaugeIntervalEma+(gap-gaugeIntervalEma)*0.2 : gap;
+  }
+  lastTargetT=now;
+  /* 다음 측정까지의 예상 시간보다 살짝 길게 잡습니다. 짧으면 도착한 뒤 멈춰 있는 구간이
+     생겨 '계단'처럼 보이고, 너무 길면 반응이 늦게 느껴집니다. */
+  const durMs=clamp((gaugeIntervalEma||1/30)*1.15, 1/60, 0.25)*1000;
   for(const key in metricEls){
     const els=metricEls[key];
     if(!els || !els.fill) continue;
-    const t=gaugeTarget[key]||0, p=gaugePrev[key]||0;
-    const v=p+(t-p)*a;
-    gaugeShown[key]=v;
-    const w=(v*100).toFixed(1)+'%';
-    if(els.lastWidth!==w){ els.fill.style.width=w; els.lastWidth=w; }
+    setGauge(els.fill, gaugeTarget[key]||0, durMs, false);
     const c=gaugeColor[key];
     if(c && els.lastColor!==c){ els.fill.style.background=c; els.lastColor=c; }
   }
-  const hf=holdFillEl;
-  if(hf){
-    /* 유지 게이지가 줄어드는 것은 자세가 깨진 것입니다. 부드럽게 빠지면 아직 진행도가
-       남은 줄 알게 되므로 즉시 떨어뜨립니다. */
-    holdShown = (holdTarget<holdPrev) ? holdTarget : holdPrev+(holdTarget-holdPrev)*a;
-    const hw=(holdShown*100).toFixed(1)+'%';
-    if(hf.dataset.w!==hw){ hf.style.width=hw; hf.dataset.w=hw; }
-  }
+  /* 유지 게이지가 줄어드는 것은 자세가 깨진 것입니다. 천천히 빠지면 아직 진행도가 남은
+     줄 알게 되므로 즉시 떨어뜨립니다. */
+  const snap = holdTarget < holdShown;
+  setGauge(holdFillEl, holdTarget, durMs, snap);
+  holdShown=holdTarget;
 }
-requestAnimationFrame(faceAnimLoop);
 
 function evaluateChallenge(metrics, faceSeen, quality, dt){
   if(challengeDone) return;            // 같은 틱에 두 번 끝나는 것을 막습니다
@@ -1467,7 +1597,13 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
         els.lastBadge=badgeText;
       }
       /* 막대는 목표값만 적어 둡니다. 실제로 그리는 것은 화면 루프입니다. */
-      gaugeTarget[mt.key] = clamp(mt.cmp==='>=' ? val/(th*1.6) : val/(th*2), 0, 1);
+      /* 모든 막대에서 기준선이 같은 자리(60%)에 오도록 맞춥니다.
+         예전에는 지표마다 막대 눈금이 달라서(기준이 어떤 막대는 62.5%, 어떤 막대는 50%
+         지점) 막대를 봐도 지금 기준을 넘었는지 알 수 없었습니다. 판정이 들쭉날쭉해
+         보이던 이유 중 하나입니다. 이제 어느 막대든 60% 선이 기준이고, 넘어야 하는
+         조건이든 넘지 말아야 하는 조건이든 같은 자리입니다. 색으로 어느 쪽이 좋은지
+         구분합니다(초록=통과, 빨강=걸림). */
+      gaugeTarget[mt.key] = clamp(val*GAUGE_MARK/th, 0, 1);
       gaugeColor[mt.key] = pass ? 'var(--good)' : 'var(--bad)';
       /* 이 프레임이 기준을 얼마나 여유 있게 넘겼는지(음수면 못 넘김). 아래에서 '가장 잘한
          순간'을 고르는 데 씁니다. 기준 대비 비율이라 지표끼리 비교할 수 있습니다. */
@@ -1496,7 +1632,7 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
   const HT=holdSeconds();
   const hold=holdAccum;
   holdTarget = clamp(hold/HT,0,1);
-  markGaugeUpdate(now);
+  applyGauges(now);
   const holdText = hold.toFixed(1)+' / '+HT.toFixed(1)+'s';
   const hl=$('holdLabel');
   if(hl && hl.textContent!==holdText) hl.textContent=holdText;
@@ -1534,17 +1670,20 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
   if(hold>=HT){ finishChallenge(true); return; }
   if(timeLeft<=0){ finishChallenge(false); return; }
 }
+/* 같은 지표가 미션에 따라 "넘겨야 하는 조건"이기도, "넘지 말아야 하는 조건"이기도 합니다.
+   예를 들어 입꼬리는 '입만 웃기'에서는 올려야 하고 '슬픈 복어'에서는 올리면 안 됩니다.
+   그래서 지표 이름만으로 안내하면 정반대로 알려주게 됩니다. 방향까지 보고 고릅니다. */
 function failText(mt){
   const texts={
-    mouthSmile:'입꼬리를 더 확실히 올려 보세요.',
-    eyeSquint:'눈이 가늘어졌어요. 눈을 평소대로 크게 뜨고 있으세요.',
-    browDrop:'눈썹이 눈 쪽으로 내려왔어요. 눈썹을 그대로 두세요.',
-    sadBrow:'눈썹이 아직 평온해요. 미간을 찡그리거나 눈썹 안쪽을 올려보세요.',
-    smirkHigh:'한쪽 입꼬리를 더 확실히 올려 보세요.',
-    smirkLow:'반대쪽 입꼬리도 같이 올라가고 있어요. 한쪽만!',
-    jawOpen:'입을 너무 크게 벌리고 있어요.'
+    'mouthSmile>=':'입꼬리를 더 확실히 올려 보세요.',
+    'mouthSmile<=':'입꼬리를 옆으로 당기지 마세요. 입은 꽉 닫은 채로 있어야 합니다.',
+    'eyeSquint<=':'눈이 가늘어졌어요. 눈을 평소대로 크게 뜨고 있으세요.',
+    'browDrop<=':'눈썹이 눈 쪽으로 내려왔어요. 눈썹을 그대로 두세요.',
+    'sadBrow>=':'눈썹이 아직 평온해요. 미간을 찡그리거나 눈썹 안쪽을 올려보세요.',
+    'cheekPuff>=':'볼을 더 빵빵하게 부풀려 보세요. 입을 꽉 닫고 공기를 물면 됩니다.',
+    'browAsym>=':'한쪽 눈썹만 더 확실히 올리세요. 두 눈썹이 같이 올라가면 높이차가 안 생깁니다.'
   };
-  return texts[mt.key] || '조건을 맞춰보세요.';
+  return texts[mt.key+(mt.cmp||'')] || texts[mt.key] || '조건을 맞춰보세요.';
 }
 
 function challengeLoop(){
