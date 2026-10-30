@@ -9,14 +9,50 @@
   --bg:#0b0b10; --panel:#15151d; --panel2:#1c1c26; --border:#2a2a36;
   --text:#eef0f5; --muted:#8b8fa3; --pink:#ff4f9c; --pink-soft:rgba(255,79,156,0.14);
   --good:#3ddc84; --bad:#ff5c5c; --warn:#ffd166;
+  /* 미션 카드와 AI 판정 막대(시안 스타일) */
+  --card:#15151d; --card-in:#1f1f2b; --track:#2c2c3a;
+  --chip-neutral:#2a2a36; --chip-neutral-ink:#c9cbd6;
+  --chip-pink:rgba(255,79,156,0.24); --chip-pink-ink:#ff9ccb;
+  --letter-bg:#ff8cc0; --letter-ink:#2a0717;
+  --joy-tint:rgba(245,184,76,0.30); --joy-ink:#f5c46a;
+  --sad-tint:rgba(110,160,255,0.30); --sad-ink:#8fb6ff;
+  --anger-tint:rgba(255,100,84,0.30); --anger-ink:#ff8f80;
+  --fill-ok:#5fcf8a; --fill-bad:#ff7a7a;
+  --zone-line:rgba(255,255,255,0.80);
+  --zone-fill:rgba(255,79,156,0.50); --zone-edge:#ff4f9c; --zone-ink:#ff8cc0;
+  --marker:#f4f4f8;
+  --say-bg:rgba(255,79,156,0.24); --say-ink:#ffa3cf;
+  --say-sure-bg:#2c2c3a; --say-sure-ink:#eef0f5;
+  --ok-bg:rgba(61,220,132,0.07); --ok-line:#2f9e60; --ok-ink:#6fe0a0;
+  --retry-bg:rgba(240,140,80,0.07); --retry-line:#c06a35; --retry-ink:#f0a070;
+  --face:#f6d9e4; --face-line:#16161c;
   box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
 @media (prefers-color-scheme:light){
-  :root:not([data-theme="dark"]){ --bg:#f5f5f8; --panel:#ffffff; --panel2:#f0f0f5; --border:#e2e2ea; --text:#1a1a22; --muted:#6b6b7a; }
+  :root:not([data-theme="dark"]){ --bg:#f5f5f8; --panel:#ffffff; --panel2:#f0f0f5; --border:#e2e2ea; --text:#1a1a22; --muted:#6b6b7a;
+    /* 밝은 배경에서는 원래 초록·빨강·노랑 글자가 거의 안 보여서 한 단계 진하게 씁니다. */
+    --good:#1f9d57; --bad:#d93a3a; --warn:#b7791f;
+    --card:#ebebef; --card-in:#ffffff; --track:#e4e4e9;
+    --chip-neutral:#ececef; --chip-neutral-ink:#3a3a44;
+    --chip-pink:#f3a9cb; --chip-pink-ink:#4a0f2a;
+    --letter-bg:#ee8fbd; --letter-ink:#2a0717;
+    --joy-tint:#f6e2b6; --joy-ink:#9a5b0c;
+    --sad-tint:#dce5fb; --sad-ink:#2f5fc4;
+    --anger-tint:#f9d4cd; --anger-ink:#b8361f;
+    --fill-ok:#9fd3a8; --fill-bad:#f2a0a0;
+    --zone-line:#1a1a22;
+    --zone-fill:#ec9ac2; --zone-edge:#c24a84; --zone-ink:#b0306f;
+    --marker:#16161c;
+    --say-bg:#f6bcd6; --say-ink:#7d1747;
+    --say-sure-bg:#ececef; --say-sure-ink:#1a1a22;
+    --ok-bg:#eaf4ec; --ok-line:#3d7a4b; --ok-ink:#2d6b3b;
+    --retry-bg:#fbeee5; --retry-line:#b5652e; --retry-ink:#9a4a17; }
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
-body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+  /* 한글이 낱글자 단위로 끊겨 '헷갈 / 림'처럼 줄이 바뀌지 않게, 띄어쓰기에서만 줄을 바꿉니다. */
+  word-break:keep-all;overflow-wrap:break-word;}
 .wrap{max-width:980px;margin:0 auto;padding:18px 16px 40px;}
 header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:22px;}
 .logo{font-size:19px;font-weight:800;display:flex;align-items:center;gap:8px;}
@@ -38,34 +74,108 @@ section.step.active{display:block;}
 
 /* --- select --- */
 .tagline{color:var(--pink);font-weight:700;font-size:13px;margin-bottom:6px;}
-.title{font-size:24px;font-weight:800;margin-bottom:20px;}
-.cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px;}
-/* 보너스 칸. 기본 미션 아래에 구분선과 함께 따로 놓습니다. */
-.bonus-head{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);
-  font-weight:700;border-top:1px solid var(--border);padding-top:16px;margin-bottom:12px;}
-.bonus-chip{background:var(--pink-soft);color:var(--pink);font-size:11px;font-weight:800;
-  padding:3px 9px;border-radius:20px;letter-spacing:0.3px;}
-#bonusWrap .mcard{border-color:rgba(255,79,156,0.35);}
-#bonusWrap .mcard.sel{border-color:var(--pink);}
-.mcard{flex:1 1 260px;min-width:230px;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px;position:relative;cursor:pointer;transition:border-color .12s,transform .12s;}
-.mcard:hover{border-color:var(--pink);transform:translateY(-2px);}
+.title{font-size:24px;font-weight:800;margin-bottom:18px;}
+/* 미션 카드. 고른 카드만 시안처럼 크게 펼쳐(막대 미리보기 · 성공/다시 도전 기준) 보여주고,
+   나머지는 한 줄로 접어 둡니다. 세 장을 모두 펼치면 '준비됐어요' 버튼이 화면 아래로 밀려나
+   전시장에서 스크롤 없이는 시작할 수 없게 됩니다. */
+.cards{display:flex;flex-direction:column;gap:12px;margin-bottom:18px;}
+.mcard{display:flex;gap:16px;align-items:stretch;background:var(--card);border:2px solid transparent;border-radius:22px;padding:12px;cursor:pointer;transition:border-color .12s;}
+.mcard:hover{border-color:var(--border);}
 .mcard:focus-visible{outline:2px solid var(--pink);outline-offset:2px;}
-.mcard.sel{border-color:var(--pink);box-shadow:0 0 0 1px var(--pink);}
-.mcard .tag{display:none;}
-.mcard.sel .tag{display:inline-block;background:var(--pink-soft);color:var(--pink);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;margin-bottom:10px;}
-.mcard h3{font-size:19px;margin:0 0 8px;}
-.mcard p{color:var(--muted);font-size:13px;margin:0 0 14px;line-height:1.5;}
-.mcard .cond{background:var(--panel2);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--muted);}
+.mcard.sel{border-color:var(--pink);cursor:default;padding:14px;}
+.mc-left{flex:0 0 auto;width:78px;background:var(--card-in);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:7px;}
+.mcard.sel .mc-left{width:178px;padding:16px 10px;}
+.mc-face{width:62px;height:62px;}
+.mcard.sel .mc-face{width:132px;height:132px;}
+.mc-face svg{width:100%;height:100%;display:block;}
+.mc-chips{display:none;flex-direction:column;align-items:center;gap:7px;margin-top:14px;}
+.mcard.sel .mc-chips{display:flex;}
+.chip{font-size:12.5px;font-weight:800;padding:4px 10px;border-radius:7px;white-space:nowrap;}
+.chip.neutral{background:var(--chip-neutral);color:var(--chip-neutral-ink);}
+.chip.pink{background:var(--chip-pink);color:var(--chip-pink-ink);}
+.chip.joy{background:var(--joy-tint);color:var(--joy-ink);}
+.chip.sad{background:var(--sad-tint);color:var(--sad-ink);}
+.chip.anger{background:var(--anger-tint);color:var(--anger-ink);}
+.mc-right{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;}
+.mc-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.mc-letter{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:var(--letter-bg);color:var(--letter-ink);font-weight:900;font-size:15px;flex:0 0 auto;vertical-align:middle;}
+.mc-head h3{margin:0;font-size:22px;font-weight:900;letter-spacing:-0.3px;}
+.mc-tag{display:none;background:var(--pink-soft);color:var(--pink);font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;}
+.mcard.sel .mc-tag{display:inline-block;}
+.mc-desc{margin:7px 0 0;font-size:14.5px;line-height:1.55;color:var(--text);}
+.mc-desc b{font-weight:900;}
+.mc-detail .gbox{margin-top:12px;}
+.mc-boxes{display:flex;gap:12px;margin-top:12px;}
+.mc-box{flex:1 1 0;border:2px solid;border-radius:14px;padding:10px 14px;font-size:13.5px;line-height:1.55;}
+.mc-box h5{margin:0 0 4px;font-size:15px;font-weight:900;display:flex;align-items:center;gap:7px;}
+.mc-box b{font-weight:900;}
+.mc-box.ok{border-color:var(--ok-line);background:var(--ok-bg);}
+.mc-box.ok h5{color:var(--ok-ink);}
+.mc-box.retry{border-color:var(--retry-line);background:var(--retry-bg);}
+.mc-box.retry h5{color:var(--retry-ink);}
+.mc-box .ico{width:19px;height:19px;flex:0 0 auto;}
 .select-actions{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px;}
 .timer-note{color:var(--muted);font-size:13px;}
-.privacy-note{color:var(--muted);font-size:12px;border-top:1px solid var(--border);padding-top:14px;}
+.privacy-note{color:var(--muted);font-size:12.5px;border-top:1px solid var(--border);padding-top:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 16px;}
+@media (max-width:600px){
+  .mcard.sel{flex-direction:column;}
+  .mcard.sel .mc-left{width:auto;flex-direction:row;gap:14px;padding:10px;}
+  .mcard.sel .mc-face{width:86px;height:86px;}
+  .mcard.sel .mc-chips{margin-top:0;}
+  .mc-boxes{flex-direction:column;}
+}
+
+/* --- AI 판정 막대: 선택 화면 미리보기와 도전 화면이 똑같은 모양을 씁니다 --- */
+.gbox{background:var(--card-in);border-radius:14px;padding:12px 14px;}
+.gbox-head{display:flex;justify-content:space-between;align-items:baseline;gap:4px 10px;flex-wrap:wrap;margin-bottom:12px;}
+.gbox-title{font-size:12px;font-weight:700;color:var(--muted);}
+.tug-vals{font-size:13.5px;font-weight:900;color:var(--muted);}
+.ink-joy{color:var(--joy-ink);} .ink-sad{color:var(--sad-ink);} .ink-anger{color:var(--anger-ink);}
+/* 점선 칸 막대(입만 웃기). 점선 칸은 막대보다 조금 크게 둘러 '이 안에 들어가면 된다'를 보여줍니다. */
+.zrow{display:grid;grid-template-columns:60px 1fr 46px;align-items:center;gap:12px;margin:0 0 14px;}
+.zname{font-size:13.5px;font-weight:800;}
+.zwrap{position:relative;height:12px;}
+.ztrack{position:absolute;inset:0;border-radius:7px;background:var(--track);overflow:hidden;}
+.zfill{position:absolute;inset:0;background:var(--fill-ok);transform:scaleX(0);transform-origin:left center;will-change:transform;transition:background-color .15s;}
+.zfill.bad{background:var(--fill-bad);}
+.zzone{position:absolute;top:-6px;bottom:-6px;border:2px dashed var(--zone-line);border-radius:10px;pointer-events:none;}
+.zval{font-size:14px;font-weight:900;text-align:right;font-variant-numeric:tabular-nums;}
+.gfoot{display:flex;justify-content:space-between;align-items:center;gap:8px 12px;flex-wrap:wrap;font-size:12px;color:var(--muted);}
+.gfoot b{color:var(--text);font-weight:800;}
+.gfoot b.zone-ink{color:var(--zone-ink);}
+/* 줄다리기 막대(울면서 웃기 · 울면서 화내기). 가운데 분홍 칸이 '헷갈림 구간'입니다.
+   표시가 칸 안에 있다 = 두 감정의 차이가 10%p 이내라는 뜻입니다. */
+.tug{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;margin-bottom:10px;}
+.tug-end{font-size:13px;font-weight:800;white-space:nowrap;}
+/* 표시(세로 막대)는 transform으로 움직입니다(게이지와 같은 이유). 움직이는 껍데기가
+   오른쪽 밖으로 넘어가 화면이 가로로 밀리지 않도록 바깥 틀에서 잘라냅니다. */
+.tug-rail{position:relative;height:30px;overflow:hidden;}
+.tug-area{position:absolute;left:5px;right:5px;top:0;bottom:0;}
+.tug-track{position:absolute;left:0;right:0;top:8px;height:14px;border-radius:8px;
+  background:linear-gradient(90deg,var(--tl) 0 50%,var(--tr) 50% 100%);}
+.tug-zone{position:absolute;left:45%;width:10%;top:4px;bottom:4px;border-radius:7px;background:var(--zone-fill);border:2px solid var(--zone-edge);transition:box-shadow .15s;}
+#liveGauge .tug-zone.on{box-shadow:0 0 0 3px var(--pink-soft),0 0 12px var(--zone-edge);}
+.tug-pos{position:absolute;inset:0;transform:translateX(50%);will-change:transform;}
+.tug-marker{position:absolute;left:-3px;top:1px;bottom:1px;width:6px;border-radius:3px;background:var(--marker);transition:opacity .15s;}
+.tug-marker.weak{opacity:.3;}
+.ai-say{display:inline-block;font-size:12.5px;font-weight:800;padding:5px 12px;border-radius:20px;background:var(--say-bg);color:var(--say-ink);}
+.ai-say.sure{background:var(--say-sure-bg);color:var(--say-sure-ink);}
+.ai-say.flat{background:var(--chip-neutral);color:var(--muted);}
+.cond-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.cond{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:20px;background:var(--chip-neutral);color:var(--muted);}
+.cond.ok{background:rgba(61,220,132,0.15);color:var(--good);}
+.cond.bad{background:rgba(255,92,92,0.15);color:var(--bad);}
+.cond.ok::before{content:'✓ ';}
+.cond.bad::before{content:'✕ ';}
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:0.001ms !important;animation-iteration-count:1 !important;transition-duration:0.001ms !important;}
 }
 
 /* --- challenge --- */
 .challenge-title{font-size:15px;color:var(--muted);margin-bottom:2px;}
-.challenge-mission{font-size:24px;font-weight:800;margin-bottom:18px;}
+.challenge-mission{font-size:24px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:10px;}
+.challenge-desc{font-size:14.5px;color:var(--text);margin:0 0 16px;line-height:1.5;}
+.challenge-desc b{font-weight:900;}
 .challenge-grid{display:flex;gap:18px;flex-wrap:wrap;}
 .facebox{flex:1 1 340px;min-width:280px;background:#000;border-radius:16px;border:1px solid var(--border);position:relative;aspect-ratio:4/3;overflow:hidden;}
 .facebox svg{width:100%;height:100%;}
@@ -107,24 +217,8 @@ section.step.active{display:block;}
    잠깐 막혀 있어도 게이지는 계속 부드럽게 흐릅니다. */
 .hold-fill{height:100%;background:linear-gradient(90deg,var(--pink),#ff8fc4);width:100%;
   transform:scaleX(0);transform-origin:left center;will-change:transform;}
-.metric-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-top:16px;}
-.metric-box h4{margin:0 0 10px;font-size:13px;color:var(--muted);font-weight:700;}
-.metric{margin-bottom:12px;}
-.metric:last-child{margin-bottom:0;}
-.metric-top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;}
-.metric-top .name{color:var(--text);}
-.metric-top .val{font-weight:800;}
-/* 60% 지점의 옅은 세로선이 '기준선'입니다. 막대가 이 선을 넘으면 조건을 만족한 것이고,
-   넘지 말아야 하는 조건이라면 이 선 앞에서 멈춰 있어야 합니다. 모든 지표에서 같은
-   자리라서, 수치를 읽지 않고 막대만 봐도 지금 상태를 알 수 있습니다. */
-.metric-track{height:7px;border-radius:5px;overflow:hidden;margin-bottom:3px;
-  background:linear-gradient(90deg,var(--panel2) 0 calc(60% - 1px),rgba(255,255,255,0.45) calc(60% - 1px) calc(60% + 1px),var(--panel2) calc(60% + 1px) 100%);}
-.metric-fill{height:100%;border-radius:5px;width:100%;
-  transform:scaleX(0);transform-origin:left center;will-change:transform;}
-.metric-hint{font-size:10.5px;color:var(--muted);}
-.pass-badge{font-size:11px;font-weight:800;padding:2px 8px;border-radius:20px;}
-.pass-badge.ok{background:rgba(61,220,132,0.15);color:var(--good);}
-.pass-badge.bad{background:rgba(255,92,92,0.15);color:var(--bad);}
+/* 도전 화면의 판정 막대 칸. 선택 화면의 미리보기(.gbox)와 같은 부품을 씁니다. */
+.side .gbox{margin-top:16px;border:1px solid var(--border);}
 .feedback-box{margin-top:14px;border:1px solid var(--bad);background:rgba(255,92,92,0.08);color:var(--text);border-radius:12px;padding:12px 14px;font-size:13px;}
 .feedback-box.ok{border-color:var(--good);background:rgba(61,220,132,0.08);}
 
@@ -132,6 +226,8 @@ section.step.active{display:block;}
 .result-title{font-size:30px;font-weight:900;margin-bottom:8px;}
 .result-title.ok{color:var(--good);}
 .result-title.bad{color:var(--pink);}
+.result-say{margin:2px 0 12px;}
+.result-say .ai-say{font-size:14px;padding:6px 14px;}
 .result-desc{color:var(--muted);font-size:14px;margin-bottom:22px;line-height:1.6;}
 .result-desc b{color:var(--text);}
 .result-grid{display:flex;gap:18px;flex-wrap:wrap;}
@@ -167,7 +263,7 @@ table.result-table td b{font-weight:800;}
   <section class="step active" id="step-idle">
     <div class="hero">
       <h2>얼굴로 모순을 만들어 AI를 헷갈리게 하라</h2>
-      <p>자신의 얼굴을 보면서 3가지 미션 중 하나에 도전합니다. 자신 있다면 보너스 미션도 있습니다.<br>영상은 내 화면에서만 재생되며, 어디에도 저장하거나 전송하지 않습니다.</p>
+      <p>자신의 얼굴을 보면서 3가지 미션 중 하나에 도전합니다. AI가 내 표정을 제대로 못 읽고 헷갈려하면 성공이에요.<br>영상은 내 화면에서만 재생되며, 어디에도 저장하거나 전송하지 않습니다.</p>
       <button class="primary-btn" id="camBtn">카메라 시작</button>
       <p id="camError" style="color:var(--bad);font-size:13px;margin-top:14px;display:none;"></p>
     </div>
@@ -177,20 +273,19 @@ table.result-table td b{font-weight:800;}
     <div class="tagline">얼굴로 모순을 만들어 AI를 헷갈리게 하라</div>
     <div class="title">도전할 미션을 선택하세요</div>
     <div class="cards" id="cardsWrap"></div>
-    <div class="bonus-head"><span class="bonus-chip">보너스</span>최고 난이도 · 가장 어려운 안면 모순</div>
-    <div class="cards" id="bonusWrap"></div>
     <div class="select-actions">
       <button class="secondary-btn" id="rerollBtn">다시 뽑기</button>
       <button class="primary-btn" id="readyBtn">준비됐어요 · 3초 후 시작</button>
       <span class="timer-note">제한 시간 20초</span>
     </div>
     <p id="calibNote" role="status" aria-live="polite" style="color:var(--bad);font-size:13px;margin:0 0 14px;display:none;"></p>
-    <div class="privacy-note">카메라 영상은 이 기기의 화면에서만 보이며, 서버로 전송되거나 저장되지 않습니다.</div>
+    <div class="privacy-note"><span>한 번에 한 명씩 · 얼굴이 화면 네모 안에 보이게 서 주세요</span><span>카메라 영상과 사진은 저장하지 않아요</span></div>
   </section>
 
   <section class="step" id="step-challenge">
     <div class="challenge-title">미션</div>
     <div class="challenge-mission" id="challengeMissionTitle">-</div>
+    <p class="challenge-desc" id="challengeDesc"></p>
     <div class="challenge-grid">
       <div class="facebox">
         <canvas id="meshCanvas" class="meshlayer"></canvas>
@@ -220,8 +315,6 @@ table.result-table td b{font-weight:800;}
           <path id="lipShine" d="M115,195 Q150,195 185,195" fill="none" stroke="#ffd6ea" stroke-width="1" stroke-linecap="round" opacity="0.3"/>
           <circle id="dimpleL" cx="115" cy="195" r="2" fill="#e63a86" opacity="0"/>
           <circle id="dimpleR" cx="185" cy="195" r="2" fill="#e63a86" opacity="0"/>
-          <ellipse id="cheekL" cx="88" cy="168" rx="0" ry="0" fill="rgba(255,79,156,0.18)" stroke="#ff4f9c" stroke-width="1.5"/>
-          <ellipse id="cheekR" cx="212" cy="168" rx="0" ry="0" fill="rgba(255,79,156,0.18)" stroke="#ff4f9c" stroke-width="1.5"/>
           <circle cx="72" cy="150" r="3.5" fill="#ff4f9c"/>
           <circle cx="228" cy="150" r="3.5" fill="#ff4f9c"/>
           <circle cx="115" cy="195" r="3" fill="#ff4f9c"/>
@@ -244,14 +337,11 @@ table.result-table td b{font-weight:800;}
             <div class="num"><b id="timeLeftNum">20</b><span>초 남음</span></div>
           </div>
           <div style="flex:1;">
-            <div class="hold-label"><span>조건 유지</span><span id="holdLabel">0.0 / 3.0s</span></div>
+            <div class="hold-label"><span id="holdName">조건 유지</span><span id="holdLabel">0.0 / 2.0s</span></div>
             <div class="hold-track"><div class="hold-fill" id="holdFill"></div></div>
           </div>
         </div>
-        <div class="metric-box">
-          <h4 id="metricBoxTitle">판정 수치</h4>
-          <div id="metricsList"></div>
-        </div>
+        <div class="gbox" id="liveGauge"></div>
         <div class="feedback-box" id="feedbackBox" role="status" aria-live="polite">얼굴을 화면 중앙에 맞춰주세요</div>
       </div>
     </div>
@@ -259,11 +349,12 @@ table.result-table td b{font-weight:800;}
 
   <section class="step" id="step-result">
     <div class="result-title" id="resultTitle" role="status" aria-live="polite">-</div>
+    <div class="result-say"><span class="ai-say" id="resultSay"></span></div>
     <div class="result-desc" id="resultDesc"></div>
     <div class="result-grid">
       <div class="result-left">
         <table class="result-table">
-          <thead><tr><th>부위</th><th>내 최고값</th><th>기준</th><th>결과</th></tr></thead>
+          <thead><tr><th>항목</th><th id="resultColHead">가장 가까웠던 순간</th><th>기준</th><th>결과</th></tr></thead>
           <tbody id="resultRows"></tbody>
         </table>
       </div>
@@ -283,34 +374,27 @@ table.result-table td b{font-weight:800;}
 <script>
 const READY_COUNTDOWN = 3, AUTO_RETURN = 10;
 
-/* 판정 기준은 하나로 고정합니다(전 구간 검증된 값). */
-const HOLD_SECONDS = 3.0, TIME_LIMIT = 20.0;
+/* 판정 기준은 하나로 고정합니다. 유지 시간은 미션 안내(시안)대로 2초입니다. */
+const HOLD_SECONDS = 2.0, TIME_LIMIT = 20.0;
 /* 도전이 시작된 직후 0.35초는 결과표 집계에서 뺍니다. 필터가 무표정 기준값에서 출발해
    실제 표정까지 올라오는 데 그만큼 걸리고, 그 구간에서는 모든 수치가 '무표정'에 가깝게
    읽힙니다. 무표정은 "눈을 찡그리지 마라" 같은 조건을 공짜로 만족시키기 때문에, 내내
    눈을 찡그린 사람에게도 '눈 가늘어짐 0.00 · 통과'와 "조건은 다 만들었다"는 안내가
-   나갔습니다. 유지 시간(3초)에는 영향이 없습니다. */
+   나갔습니다. 유지 시간에는 영향이 없습니다. */
 const SETTLE_SECONDS = 0.35;
-/* 막대에서 기준선이 놓이는 위치(0~1). 트랙 눈금과 같은 값이어야 합니다. */
-const GAUGE_MARK = 0.6;
 function holdSeconds(){ return HOLD_SECONDS; }
 function timeLimit(){ return TIME_LIMIT; }
-function effThreshold(mt){ return mt.threshold; }
-function fmtThreshold(mt){
-  return mt.isPercent ? Math.round(mt.threshold*100)+'%' : String(Math.round(mt.threshold*100)/100);
-}
-/* 카드 조건 문구는 지표 정의에서 자동으로 만듭니다. 손으로 적은 문구는 실제 기준과
-   어긋날 수 있고, 어긋나면 사용자가 통과 조건을 잘못 알게 됩니다. */
-function missionCond(m){
-  return m.metrics.filter(x=>!x.reference).map(x=>{
-    const name=x.label.split(' · ')[0];
-    /* 예/아니오로만 갈리는 조건은 숫자로 보여주면 뜻이 전달되지 않습니다
-       ("엇갈림 0.5 이상"처럼). 말로 적습니다. */
-    if(x.binary) return name+' '+(x.binaryText||'만족');
-    return name+' '+fmtThreshold(x)+(x.cmp==='>='?' 이상':' 이하');
-  }).join(' + ')+' · '+holdSeconds().toFixed(1)+'초 유지';
-}
 const DEBOUNCE_SECONDS = 0.07;   // 약 2프레임(30fps)에 해당하는 시간
+/* 줄다리기 판정(울면서 웃기 · 울면서 화내기). 두 감정이 모두 30% 이상이고 차이가 10%p
+   이내여야 'AI가 어느 쪽인지 못 정하는' 상태입니다. 차이 10%p 이내는 줄다리기 표시가
+   가운데 분홍 칸(45~55%) 안에 있는 것과 정확히 같은 조건입니다.
+   값은 모두 화면에 보이는 정수 %로 다룹니다. */
+const TUG_MIN = 30, TUG_GAP = 10;
+/* 결과 화면의 '가장 가까웠던 순간'은 한 프레임이 아니라 0.3초 평균으로 고릅니다. 한
+   프레임만 고르면 표정이 바뀌는 도중에 튄 값이 뽑힐 수 있습니다. */
+const WIN_SEC = 0.3;
+/* 유지 게이지가 이만큼이라도 찼다면 '조건은 만들었는데 버티지 못한' 경우로 안내합니다. */
+const COLLAPSE_MIN_HOLD = 0.2;
 
 /* ── One-Euro 필터 ─────────────────────────────────────────────────────────────
    가만히 있을 때는 떨림을 강하게 눌러 주고, 표정이 실제로 바뀔 때는 거의 지연 없이 따라갑니다.
@@ -353,10 +437,6 @@ const LID_L_PTS=[157,158,159,160,161], LID_R_PTS=[384,385,386,387,388];   // 윗
    안쪽 끝이 서로 가까워지면(미간 찌푸림) 슬픔·화남 양쪽에 공통으로 나타납니다. */
 const BROW_IN_L=107, BROW_IN_R=336, BROW_OUT_L=70, BROW_OUT_R=300;
 const BROW_L_PTS=[70,63,105,66,107], BROW_R_PTS=[336,296,334,293,300];  // 눈썹 전체 윤곽 5점
-/* 볼. 얼굴 윤곽선에서 광대 아래(234/454) → 볼 중간(58/288) → 턱선(172/397) 세 점을 씁니다.
-   볼을 부풀리면 가운데 점이 바깥으로 밀려 윤곽이 더 둥글게 휩니다. */
-const CHEEK_L=58, CHEEK_R=288;
-const CHEEK_L_TOP=234, CHEEK_L_BOT=172, CHEEK_R_TOP=454, CHEEK_R_BOT=397;
 const ANCHOR_PTS=[33,263,1];                              // 프레임 간 일관성 검사용 안정점
 const NOSE_TIP=1, UPPER_LIP=0;          // 고개 방향 추정 / 입꼬리 기준선
 /* refineLandmarks:true 일 때만 존재하는 홍채 점. 홍채는 사람마다 크기가 거의 같은
@@ -565,28 +645,6 @@ function computeBrowGapR(getPt,S){ return browGapSide(getPt,S,BROW_R_PTS,LID_R_P
 function computeBrowGap(getPt,S){
   return (computeBrowGapL(getPt,S)+computeBrowGapR(getPt,S))/2;
 }
-/* 볼 너비. 윤곽선 좌우 볼 중간점 사이 거리. 볼을 부풀리면 넓어집니다.
-   긴 거리를 재기 때문에 랜드마크 떨림에 둔합니다(노이즈가 작습니다). */
-function computeCheekWidth(getPt,S){
-  if(!S) return 0;
-  return dist(getPt(CHEEK_L), getPt(CHEEK_R))/S;
-}
-/* 볼이 바깥으로 부푼 양. 광대 아래와 턱선을 이은 '현'에서 볼 중간점까지의 수직 거리입니다.
-   수직 거리라서 고개를 기울여도 값이 바뀌지 않고, 얼굴 폭으로 나누므로 거리와도 무관합니다.
-   너비만 보면 턱을 벌리거나 고개를 돌려도 늘어날 수 있는데, 이 '휘어짐'은 볼 표면이 실제로
-   밀려나왔을 때만 커지기 때문에 둘을 함께 보면 부풀림을 훨씬 분명하게 가릴 수 있습니다. */
-function cheekSagitta(getPt,aIdx,midIdx,bIdx,S){
-  if(!S) return 0;
-  const A=getPt(aIdx), B=getPt(bIdx), M=getPt(midIdx);
-  const vx=B.x-A.x, vy=B.y-A.y;
-  const len=Math.hypot(vx,vy);
-  if(!(len>0)) return 0;
-  return Math.abs((M.x-A.x)*vy - (M.y-A.y)*vx)/len/S;
-}
-function computeCheekBulge(getPt,S){
-  return (cheekSagitta(getPt,CHEEK_L_TOP,CHEEK_L,CHEEK_L_BOT,S)
-         +cheekSagitta(getPt,CHEEK_R_TOP,CHEEK_R,CHEEK_R_BOT,S))/2;
-}
 /* 미간 너비. 슬프거나 화날 때 눈썹 안쪽이 서로 당겨져 좁아집니다.
    웃음 근육(광대)과는 완전히 다른 근육이라, 웃는 것만으로는 변하지 않습니다.
    바로 그 독립성 덕분에 "웃는 입 + 슬픈 눈썹"이 진짜 모순이 됩니다. */
@@ -611,9 +669,19 @@ function computeCornerRise(getPt,S,idx){
   if(!S) return 0;
   return (getPt(UPPER_LIP).y - getPt(idx).y)/S;
 }
+/* 입꼬리 처짐(울상 입). 입술 사이 중심선(윗입술 안쪽 13 · 아랫입술 안쪽 14의 가운데)보다
+   입꼬리가 얼마나 아래에 있는지 잽니다.
+   웃음용 입꼬리 높이처럼 윗입술 중앙(0)을 기준으로 삼으면, 입을 벌리기만 해도 아래턱을
+   따라 입꼬리가 내려가서 울상으로 잘못 읽힙니다. 입술 사이 중심선은 입을 벌리면 같이
+   내려가므로 그 효과가 상쇄됩니다. 두 점이 바로 옆에 있어 고개 각도의 영향도 거의 없습니다. */
+function computeCornerDrop(getPt,S,idx){
+  if(!S) return 0;
+  const midY=(getPt(MOUTH_TOP).y+getPt(MOUTH_BOT).y)/2;
+  return (getPt(idx).y-midY)/S;
+}
 /* 측정 채널마다 One-Euro 필터를 하나씩 둡니다. */
 const FILTER_KEYS=['lidL','lidR','mar','mouthWidth','browGap','riseL','riseR','yaw','pitch','browKnit','browSlant',
-  'browGapL','browGapR','cheekWidth','cheekBulge'];
+  'browGapL','browGapR','dropL','dropR'];
 const filters={};
 FILTER_KEYS.forEach(k=>filters[k]=makeFilter());
 function pushSmooth(key,val,dt){ return filterPush(filters[key], val, dt); }
@@ -628,7 +696,7 @@ function primeFilters(){
 
 let baseline={lidL:0.055,lidR:0.055,mouthWidth:0.40,browGap:0.075,riseL:-0.055,riseR:-0.055,
   yaw:0.5,pitch:0.30,browKnit:0.13,browSlant:0.0,
-  cheekWidth:0.86,cheekBulge:0.055,browGapL:0.075,browGapR:0.075};
+  browGapL:0.075,browGapR:0.075,dropL:0.0,dropR:0.0};
 let calibSamples=null;
 /* yawRaw / widthRaw 는 기준값 계산에는 쓰지 않고, "준비 시간 동안 가만히 있었는지"를
    판정할 때만 씁니다. 필터를 거친 값으로 흔들림을 재면 필터가 흔들림을 지워버려서
@@ -640,7 +708,7 @@ function startCalibration(){
      빠뜨리게 되고, 그러면 직전 사람의 얼굴 값이 필터에 남아 새 기준에 섞여 들어갑니다. */
   resetSmooth(); resetAnchors();
   calibSamples={lidL:[],lidR:[],mouthWidth:[],browGap:[],riseL:[],riseR:[],yaw:[],pitch:[],
-    browKnit:[],browSlant:[],cheekWidth:[],cheekBulge:[],browGapL:[],browGapR:[],yawRaw:[],widthRaw:[]};
+    browKnit:[],browSlant:[],browGapL:[],browGapR:[],dropL:[],dropR:[],yawRaw:[],widthRaw:[]};
 }
 /* 캘리브레이션 중의 눈 깜빡임은 "평소 눈 크기"를 실제보다 작게 만들어 기준을 망칩니다.
    그래서 깜빡이는 프레임은 표본에서 제외합니다. */
@@ -695,7 +763,7 @@ function finishCalibration(){
      0이면 이후 모든 나눗셈이 무너지므로 그때만 거부합니다. 자세가 조금 틀어졌거나 얼굴이
      흔들린 건 거부 사유가 아닙니다 — 그 판정을 현실에 맞게 세우는 데 두 번 실패했고,
      틀렸을 때의 대가가 "아예 못 함"이라 너무 큽니다. */
-  /* 새로 추가한 볼·눈썹 좌우 지표는 일부러 이 목록에 넣지 않습니다. 여기에 넣으면 그 값
+  /* 입꼬리 처짐·눈썹 좌우 지표는 일부러 이 목록에 넣지 않습니다. 여기에 넣으면 그 값
      하나가 이상할 때 시작 자체가 막힙니다. 기준값이 없으면 해당 점수 함수가 0을 돌려주고,
      그 미션만 어려워질 뿐 다른 미션과 시작에는 영향이 없습니다. */
   const needed=['lidL','lidR','mouthWidth','browGap','riseL','riseR','pitch','browKnit'];
@@ -724,9 +792,9 @@ const BLINK_RATIO=0.55, BLINK_MAX_SEC=0.40;
 /* sawOpen: 눈이 '떠 있는 상태'를 한 번이라도 본 적이 있는지.
    깜빡임은 떴다가 감는 순간적인 변화입니다. 이 전제를 확인하지 않으면, 처음부터 눈을
    가늘게 뜨고 있는 사람의 실눈이 깜빡임으로 오인되어 가려집니다. */
-let blinkActive=false, blinkSince=0, blinkFrozen=0, lastEyeSquint=0, sawOpen=false;
+let blinkActive=false, blinkSince=0, blinkFrozen=0, lastEyeClosure=0, sawOpen=false;
 function isBlinking(lidRatio){ return lidRatio < BLINK_RATIO; }
-function resetBlink(){ blinkActive=false; blinkSince=0; blinkFrozen=0; lastEyeSquint=0; sawOpen=false; }
+function resetBlink(){ blinkActive=false; blinkSince=0; blinkFrozen=0; lastEyeClosure=0; sawOpen=false; }
 // 깜빡임으로 보호해 줄 시간 안에 있는지 (넘으면 의도적으로 감은 것으로 처리)
 /* 깜빡임 상태는 한 프레임에 한 번만 갱신합니다. 예전에는 눈 필터를 멈출지 정하는 곳과
    눈 수치를 보정하는 곳이 각각 따로 판정해서, 깜빡임 첫 프레임에는 아직 상태가 세워지지
@@ -735,7 +803,7 @@ function resetBlink(){ blinkActive=false; blinkSince=0; blinkFrozen=0; lastEyeSq
 function updateBlink(lidRatio, now){
   if(isBlinking(lidRatio)){
     if(!sawOpen) return false;           // 떠 있던 적이 없으면 깜빡임이 아니라 실눈입니다
-    if(!blinkActive){ blinkActive=true; blinkSince=now; blinkFrozen=lastEyeSquint; }
+    if(!blinkActive){ blinkActive=true; blinkSince=now; blinkFrozen=lastEyeClosure; }
     return (now-blinkSince) < BLINK_MAX_SEC;   // 0.4초를 넘기면 찡그림으로 봅니다
   }
   blinkActive=false;
@@ -748,11 +816,13 @@ function filterValue(key, fallback){
   return (f && f.x!==null && isFinite(f.x)) ? f.x : fallback;
 }
 /* updateBlink가 이미 판정해 둔 상태만 읽습니다.
-   깜빡이는 동안에는 깜빡임 직전의 값을 유지해, 0.15초짜리 깜빡임이 3초 유지를 깨지
-   않게 합니다. 반대로 처음부터 눈을 가늘게 뜨고 있으면 가려주지 않습니다. */
-function eyeSquintGuarded(raw, freeze){
+   깜빡이는 동안에는 깜빡임 직전의 값을 유지해, 0.15초짜리 깜빡임이 유지 시간을 깨지
+   않게 합니다. 반대로 처음부터 눈을 가늘게 뜨고 있으면 가려주지 않습니다.
+   점수가 아니라 '눈꺼풀이 내려온 비율'을 보호합니다. 눈 관련 점수(눈 웃음, 그림의 눈
+   가늘어짐)가 모두 이 값에서 만들어지므로 어느 점수에나 똑같이 적용됩니다. */
+function eyeClosureGuarded(raw, freeze){
   if(freeze) return blinkFrozen;
-  lastEyeSquint=raw;
+  lastEyeClosure=raw;
   return raw;
 }
 
@@ -769,91 +839,78 @@ function scoreMouthSmile(mouthWidthNorm, avgRawLift){
   const widthSig = baseline.mouthWidth ? (mouthWidthNorm - baseline.mouthWidth)/0.075 : 0;
   return clamp(Math.max(widthSig, avgRawLift), 0, 1);
 }
-function scoreEyeSquint(avgLid){ const base=(baseline.lidL+baseline.lidR)/2; if(!base) return 0; return clamp((1-avgLid/base)/0.28,0,1); }
-/* 슬픈 눈썹 점수. 미간 좁힘과 안쪽 올림 중 더 뚜렷한 쪽을 씁니다 — 사람마다 잘 되는
-   방향이 다르고(어떤 사람은 미간이, 어떤 사람은 팔자 눈썹이 잘 됩니다), 둘 다 "웃음이
-   아닌 감정"을 가리키므로 어느 쪽이든 모순은 성립합니다. */
-function scoreSadBrow(browKnit, browSlant){
-  const knit = baseline.browKnit ? (baseline.browKnit-browKnit)/0.040 : 0;
-  const slant = (browSlant-baseline.browSlant)/0.030;
-  return clamp(Math.max(knit, slant), 0, 1);
-}
+/* 윗눈꺼풀이 무표정 때보다 얼마나 내려왔는지(0 = 평소, 1 = 완전히 감음). */
+function lidClosure(avgLid){ const base=(baseline.lidL+baseline.lidR)/2; if(!base) return 0; return 1-avgLid/base; }
+/* 눈 가늘어짐. 그림(AI 인식 모델)에서 눈 크기를 그리는 데만 씁니다. */
+function scoreEyeSquint(closure){ return clamp(closure/0.28,0,1); }
 function scoreBrowDrop(browGap){ if(!baseline.browGap) return 0; return clamp((1-browGap/baseline.browGap)/0.26,0,1); }
 
-/* ── 볼 부풀림 ────────────────────────────────────────────────────────────────
-   분모는 "온 힘으로 부풀렸을 때" 대략의 변화량입니다. 점수 1.0이 완전히 부푼 상태,
-   0.5가 절반입니다.
-   너비(_W)와 휘어짐(_B) 두 신호를 함께 보는데, 가중치는 노이즈 비율에 맞춰 정했습니다.
-   처음에는 "긴 거리를 재는 너비가 떨림에 강하니 너비에 무게를 두자"고 생각했는데,
-   실제로 재 보니 반대였습니다. 같은 떨림에서 두 신호의 잡음은 비슷한데(약 2.3%),
-   볼을 부풀렸을 때 변하는 양은 휘어짐이 훨씬 큽니다(너비 약 17%, 휘어짐 약 92%).
-   즉 신호 대 잡음비가 휘어짐이 약 5.7배 좋습니다. 그래서 휘어짐에 무게를 둡니다.
-   너비는 턱을 벌려도 늘어날 수 있어 확인용으로만 섞습니다.
-
-   분모는 사람의 실제 움직임을 보수적으로 잡았습니다(측정 모델의 40~60% 수준에서도
-   1.0이 나오도록). 기준이 0.5이므로, 제대로 부풀리면 넉넉히 넘고 어설프게 부풀리면
-   넘지 못합니다. 이 분모는 실제 얼굴에서 한 번 더 맞춰볼 여지가 있습니다. */
-const CHEEK_FULL_W=0.10, CHEEK_FULL_B=0.40, CHEEK_W_WEIGHT=0.30;
-function scoreCheekPuff(cheekWidth, cheekBulge){
-  const bw=baseline.cheekWidth, bb=baseline.cheekBulge;
-  let wRel=0, bRel=0, wOk=false, bOk=false;
-  if(isFinite(bw) && bw>0 && isFinite(cheekWidth)){ wRel=cheekWidth/bw-1; wOk=true; }
-  if(isFinite(bb) && bb>0 && isFinite(cheekBulge)){ bRel=cheekBulge/bb-1; bOk=true; }
-  if(!wOk && !bOk) return 0;
-  /* 한쪽 기준값이 없으면(측정이 성립하지 않은 얼굴) 있는 쪽만으로 계산합니다.
-     새 지표 때문에 시작조차 못 하는 일이 생기지 않게 하는 것이 우선입니다. */
-  if(!bOk) return clamp(wRel/CHEEK_FULL_W, 0, 1);
-  if(!wOk) return clamp(bRel/CHEEK_FULL_B, 0, 1);
-  return clamp((wRel/CHEEK_FULL_W)*CHEEK_W_WEIGHT + (bRel/CHEEK_FULL_B)*(1-CHEEK_W_WEIGHT), 0, 1);
+/* ── 눈 웃음 (A · 입만 웃기) ──────────────────────────────────────────────────
+   진짜 웃음에서 눈이 하는 두 가지 — 눈이 가늘어지는 것과 눈썹이 눈 쪽으로 내려오는 것 —
+   중 더 뚜렷한 쪽입니다. 볼이 올라가는 것은 입꼬리 근육과 한 덩어리라 의지로 막을 수 없어서
+   보지 않습니다.
+   20% 선은 예전 판정 기준(눈 가늘어짐 0.35 · 눈썹 내려옴 0.35)과 물리적으로 같은 자리에
+   오도록 분모를 맞췄습니다: 0.35×0.28 = 0.098 = 0.20×0.49, 0.35×0.26 = 0.091 = 0.20×0.455.
+   그래서 난이도는 검증된 그대로이고, 표시만 시안처럼 %로 바뀝니다. */
+const EYE_SMILE_LID_FULL=0.49, EYE_SMILE_BROW_FULL=0.455;
+function scoreEyeSmile(closure, browGap){
+  const gapRed = baseline.browGap ? 1-browGap/baseline.browGap : 0;
+  return clamp(Math.max(closure/EYE_SMILE_LID_FULL, gapRed/EYE_SMILE_BROW_FULL), 0, 1);
 }
 
-/* ── 눈썹 좌우 비대칭 ─────────────────────────────────────────────────────────
-   한쪽 눈썹만 올리면 '눈썹-눈꺼풀 거리'가 좌우로 벌어집니다. 사람마다 원래 눈썹 높이가
-   조금씩 다르므로, 무표정일 때의 좌우 차이를 기준으로 삼고 '그보다 얼마나 더 벌어졌는지'만
-   봅니다. 그래서 짝눈썹인 사람도 불리하지 않습니다.
-   고개를 기울여 속이는 것은 측정 전에 회전 보정을 거치기 때문에 통하지 않습니다. */
-/* 분모를 0.040에서 0.030으로 낮췄습니다. 재 보니 다른 모든 조건은 '노력 0.5'에서 기준을
-   넘기 시작하는데 눈썹 좌우차만 0.75가 필요했습니다. 같은 난이도의 미션들 사이에서 유독
-   하나만 1.5배 어려웠던 것이고, 심한 경우 그 미션만 통과가 안 되는 원인이 됩니다.
-   한쪽 눈썹을 끝까지 올려도 점수가 0.73에서 멈추던 것이 이제 0.97까지 올라갑니다.
-   무표정에서의 잡음은 최대 0.08 수준이라 기준(0.45~0.5)과는 여전히 충분히 멉니다. */
-const BROW_ASYM_FULL=0.030;
-function scoreBrowAsym(gapL, gapR){
-  const bl=baseline.browGapL, br=baseline.browGapR;
-  if(!(isFinite(bl)&&isFinite(br)&&isFinite(gapL)&&isFinite(gapR))) return 0;
-  const d=(gapL-gapR)-(bl-br);
-  return clamp(Math.abs(d)/BROW_ASYM_FULL, 0, 1);
+/* ── 눈썹이 말하는 감정 (B · C) ──────────────────────────────────────────────
+   무표정 대비 세 가지 변화를 잽니다(1.0 = 온전한 표정).
+     drop  : 눈썹 전체가 눈 쪽으로 내려온 정도
+     knit  : 미간이 좁아진 정도(눈썹 안쪽끼리 가까워짐)
+     slant : 눈썹 안쪽 끝이 바깥보다 올라간 정도(팔자 눈썹). 음수면 안쪽이 내려간 'V'자 */
+function browSignals(browGap, browKnit, browSlant){
+  return {
+    drop:  baseline.browGap ? (1-browGap/baseline.browGap)/0.26 : 0,
+    knit:  baseline.browKnit ? (baseline.browKnit-browKnit)/0.040 : 0,
+    slant: (browSlant-baseline.browSlant)/0.030
+  };
 }
-/* 눈썹 좌우차의 '부호 있는' 값. 양수면 측정상 왼쪽(화면 오른쪽) 눈썹이 더 높습니다.
-   어느 쪽이 올라갔는지 알아야 '엇갈림'을 판정할 수 있습니다. */
-function browAsymSigned(gapL, gapR){
-  const bl=baseline.browGapL, br=baseline.browGapR;
-  if(!(isFinite(bl)&&isFinite(br)&&isFinite(gapL)&&isFinite(gapR))) return 0;
-  return (gapL-gapR)-(bl-br);
+/* 슬픈 눈썹: 안쪽 끝을 올리거나(팔자), 눈썹을 내리지 않은 채 미간만 모읍니다(걱정스러운
+   얼굴). 사람마다 잘 되는 쪽이 달라 둘 중 더 뚜렷한 쪽을 씁니다.
+   단, 미간 모으기는 화날 때도 나타납니다. 눈썹이 'V'자로 내려가 있으면 그 모으기는 슬픔으로
+   세지 않습니다. 그래야 '울면서 화내기'에서 찌푸린 눈썹 하나만으로 두 감정이 함께 오르지
+   않고, 슬픔은 입꼬리로 따로 만들어야 합니다. */
+function scoreSadBrow(b){
+  const notAngry = clamp(1+Math.min(0,b.slant)/0.35, 0, 1) * clamp(1-Math.max(0,b.drop-0.2)/0.5, 0, 1);
+  return clamp(Math.max(b.slant, Math.max(0,b.knit)*notAngry), 0, 1);
 }
-/* ── 입꼬리 좌우 비대칭 ───────────────────────────────────────────────────────
-   한쪽 입꼬리만 올렸을 때의 좌우 차이. 두 입꼬리 점수의 차이를 그대로 씁니다. */
-const MOUTH_ASYM_FULL=0.55;
-function scoreMouthAsym(liftL, liftR){
-  if(!(isFinite(liftL)&&isFinite(liftR))) return 0;
-  return clamp(Math.abs(liftL-liftR)/MOUTH_ASYM_FULL, 0, 1);
+/* 화난 눈썹: 눈썹을 눈 쪽으로 내리고 미간을 모읍니다. 안쪽 끝이 올라간(팔자) 눈썹은 아무리
+   모아도 화남이 아니라 슬픔이므로 그만큼 뺍니다. */
+function scoreAngerBrow(b){
+  const notSad = clamp(1-Math.max(0,b.slant)/0.6, 0, 1);
+  return clamp((0.65*Math.max(0,b.drop)+0.35*Math.max(0,b.knit))*notSad, 0, 1);
 }
-/* ── 엇갈림(대각선 모순) ──────────────────────────────────────────────────────
-   올라간 눈썹과 올라간 입꼬리가 서로 '반대쪽'일 때만 1입니다.
-   같은 쪽이면 얼굴 한쪽만 전체적으로 올라간 것이어서, AI가 보기에는 그냥 비대칭한
-   한 가지 표정입니다. 반대쪽이면 위아래가 서로 다른 방향을 가리켜 좌우 대칭 전제와
-   상하 일관성 전제를 동시에 깨뜨립니다 — 이 프로그램에서 만들 수 있는 가장 어려운 모순.
+/* 울상 입: 입꼬리가 무표정 때보다 아래로 처진 정도. 분모는 '확실히 입꼬리를 내렸을 때'의
+   대략적인 움직임(얼굴 폭의 2%, 보통 어른 얼굴에서 약 3mm)입니다. 입꼬리를 내리는 근육은
+   올리는 근육보다 움직임이 작아서, 웃음(4.5%)보다 작게 잡았습니다. 실제 얼굴에서 너무
+   쉽거나 어려우면 이 숫자 하나만 조절하면 됩니다. */
+const FROWN_FULL=0.020;
+function scoreMouthFrown(dropL, dropR){
+  const bl=baseline.dropL, br=baseline.dropR;
+  if(!(isFinite(bl)&&isFinite(br)&&isFinite(dropL)&&isFinite(dropR))) return 0;
+  return clamp(((dropL-bl)+(dropR-br))/2/FROWN_FULL, 0, 1);
+}
 
-   부호가 0에 가까울 때 판정이 튀지 않도록, 양쪽 모두 뚜렷할 때만 1을 줍니다.
-   (뚜렷함의 기준은 각 조건의 기준값이 이미 보장하므로 여기서는 작은 하한만 둡니다.) */
-function scoreCrossAsym(browSigned, liftL, liftR){
-  if(!(isFinite(browSigned)&&isFinite(liftL)&&isFinite(liftR))) return 0;
-  const mouthSigned=liftL-liftR;
-  if(Math.abs(browSigned)<BROW_ASYM_FULL*0.25) return 0;
-  if(Math.abs(mouthSigned)<MOUTH_ASYM_FULL*0.25) return 0;
-  return (browSigned*mouthSigned<0) ? 1 : 0;
+/* ── AI가 읽은 감정과 줄다리기 ───────────────────────────────────────────────
+   기쁨 = 웃는 입, 슬픔 = 슬픈 눈썹 또는 울상 입 중 더 뚜렷한 쪽, 화남 = 화난 눈썹.
+   (값은 onResults에서 joyE · sadE · angerE로 만듭니다.)
+   줄다리기에서는 두 감정의 합이 100%를 넘으면 비율로 나눠 합을 100%로 맞춥니다. AI의 분류
+   확률처럼 '둘 다 아주 세다'는 결국 '반반'과 같기 때문입니다. 합이 100% 이하면 그대로
+   둡니다 — 둘 다 약하면 나머지는 무표정 몫입니다.
+   표시와 판정은 모두 반올림한 정수 %로 합니다. 화면엔 30%인데 판정은 걸림, 같은 어긋남이
+   구조적으로 생기지 않습니다. */
+const pctInt = v => Math.round(clamp(isFinite(v)?v:0, 0, 1)*100);
+function tugPercents(eL, eR){
+  eL=clamp(isFinite(eL)?eL:0,0,1); eR=clamp(isFinite(eR)?eR:0,0,1);
+  const k = (eL+eR)>1 ? 1/(eL+eR) : 1;
+  return {L:Math.round(eL*k*100), R:Math.round(eR*k*100)};
 }
-/* 한쪽 눈썹이 무표정 대비 올라갔는지(+) 내려갔는지(-). 참고 표시용입니다. */
+/* 한쪽 눈썹이 무표정 대비 올라갔는지(+) 내려갔는지(-). 그림 표시용입니다. */
 function scoreBrowRaise(gap, base){
   if(!(isFinite(base)&&base>0&&isFinite(gap))) return 0;
   return clamp((gap/base-1)/0.22, -1, 1);
@@ -918,72 +975,175 @@ function poseQuality(yaw, pitch, S, jump){
   return {ok:true, why:''};
 }
 
+/* ── 미션 ─────────────────────────────────────────────────────────────────────
+   성공 = AI가 내 표정을 제대로 읽지 못하는 것입니다.
+   kind:'zones' — 막대 여러 개가 각자의 점선 칸 안에 들어가야 합니다(입만 웃기).
+   kind:'tug'   — 두 감정의 줄다리기. 둘 다 30% 이상이면서 차이가 10%p 이내, 즉 표시가
+                  가운데 분홍 칸(헷갈림 구간)에 있어야 합니다(울면서 웃기 · 울면서 화내기).
+   카드 문구의 {hold}는 유지 시간으로 바뀝니다. 기준 숫자를 바꾸면 문구도 함께 고쳐야 합니다. */
 const MISSIONS=[
-  { id:'mouth_only', label:'입만 웃기', desc:'눈은 웃지 말고 입으로만 활짝 웃으세요.',
-    explain:'진짜 웃음(뒤센 미소)에서는 입꼬리와 함께 눈이 가늘어지고 눈썹이 눈 쪽으로 내려옵니다. AI는 바로 이 눈 주변 변화로 진짜 웃음과 억지 웃음을 구별해요. 볼이 올라가는 건 입꼬리를 올리는 근육과 한 덩어리라 막기가 사실상 불가능하기 때문에, 대신 의식적으로 조절할 수 있는 눈꺼풀과 눈썹을 판정 기준으로 씁니다.',
-    metrics:[
-      {key:'mouthSmile', label:'입꼬리 올림 · mouthSmile', cmp:'>=', threshold:0.5, get:m=>m.mouthSmile,
-        tip:'입꼬리를 옆으로 더 확실히 당겨 보세요. 살짝의 미소로는 부족해요.'},
-      {key:'eyeSquint', label:'눈 가늘어짐 · eyeSquint', cmp:'<=', threshold:0.35, get:m=>m.eyeSquint,
-        tip:'웃는 동안 눈을 평소 크기 그대로 크게 뜨고 있으세요. 눈이 접히면 AI가 바로 진짜 웃음으로 판단합니다.'},
-      {key:'browDrop', label:'눈썹 내려옴 · browDrop', cmp:'<=', threshold:0.35, get:m=>m.browDrop,
-        tip:'눈썹을 눈에서 멀찍이 띄운 채로 유지하세요. 눈썹이 눈 쪽으로 내려오면 걸립니다.'}
-    ]
+  { id:'mouth_only', letter:'A', label:'입만 웃기', kind:'zones', face:'A',
+    descHtml:'<b>눈은 웃지 말고</b>, 입으로만 활짝 웃으세요.',
+    chips:[['눈: 무표정','neutral'],['입: 활짝 웃음','pink']],
+    bars:[
+      {key:'mouth', name:'입 웃음', get:m=>m.mouthSmile, cmp:'>=', th:50, zone:[50,100], preview:72},
+      {key:'eye',   name:'눈 웃음', get:m=>m.eyeSmile,   cmp:'<=', th:20, zone:[0,20],   preview:12}
+    ],
+    okHtml:'입 웃음 <b>50% 이상</b> + 눈 웃음 <b>20% 이하</b>를 <b>{hold}초</b> 유지',
+    retryHtml:'<b>눈까지 같이 웃음</b>, 입꼬리가 덜 올라감, {hold}초 전에 무너짐',
+    holdName:'점선 칸 유지',
+    say:{ pass:'AI: 웃는 거야...? 기쁨인지 모르겠어요', eyes:'AI: 진짜 웃음이네요! 기쁨이에요', mouth:'AI: 웃는 얼굴은 아닌데요?' },
+    fb:{ mouth:'입꼬리를 더 활짝 올려 보세요. 입 웃음이 50%를 넘어야 해요.',
+         eyes:'눈까지 웃고 있어요. 눈은 무표정으로 크게 뜨고, 눈썹도 그대로 두세요.' },
+    tips:{ eyes:'웃는 동안 눈을 평소 크기 그대로 크게 뜨고, 눈썹도 그대로 두세요. 눈이 접히거나 눈썹이 내려오면 AI가 바로 진짜 웃음으로 알아챕니다.',
+           mouth:'입꼬리를 옆과 위로 더 확실히 당겨 보세요. 살짝 웃는 정도로는 50%가 되지 않아요.',
+           collapse:'두 막대가 점선 칸에 들어간 순간, 그 표정 그대로 멈춰 보세요. {hold}초면 됩니다.' },
+    explain:'진짜 웃음(뒤센 미소)에서는 입꼬리와 함께 눈이 가늘어지고 눈썹이 눈 쪽으로 내려옵니다. AI는 바로 이 눈 주변 변화로 진짜 웃음과 억지 웃음을 구별해요. 입은 활짝 웃는데 눈이 무표정이면, AI는 웃는 얼굴인지 확신하지 못하고 기쁨으로 읽지 못합니다. 볼이 올라가는 건 입꼬리를 올리는 근육과 한 덩어리라 막기가 사실상 불가능해서, 의식적으로 조절할 수 있는 눈꺼풀과 눈썹만 봅니다.'
   },
-  { id:'sad_puffer', label:'슬픈 복어', desc:'눈썹은 울 것 같은 표정으로, 볼은 빵빵하게 부풀리세요.',
-    explain:'AI는 표정을 하나의 감정으로 분류하도록 배웠습니다. 울 것 같은 눈썹은 슬픔을, 빵빵하게 부푼 볼은 슬픔과 전혀 상관없는 우스꽝스러운 상태를 가리킵니다. 게다가 볼을 부풀리려면 입을 꽉 닫고 공기를 물어야 해서, 감정 표현에 쓰이는 입 모양이 아예 사라집니다. AI가 가장 크게 의존하는 입에서는 아무 감정도 읽히지 않는데 눈썹만 슬픔을 가리키는, 분류가 성립하지 않는 얼굴이 됩니다.',
-    metrics:[
-      {key:'sadBrow', label:'슬픈 눈썹 · sadBrow', cmp:'>=', threshold:0.45, get:m=>m.sadBrow,
-        tip:'미간을 찡그리거나, 눈썹 안쪽 끝을 위로 끌어올려 보세요(울기 직전 표정). 둘 중 잘 되는 쪽이면 됩니다.'},
-      {key:'cheekPuff', label:'볼 부풀림 · cheekPuff', cmp:'>=', threshold:0.5, get:m=>m.cheekPuff,
-        tip:'입을 꽉 닫고 공기를 물어 양쪽 볼을 동시에 빵빵하게 부풀리세요. 한쪽만 부풀리면 수치가 절반밖에 오르지 않습니다.'},
-      {key:'mouthSmile', label:'입은 웃지 않기 · mouthSmile', cmp:'<=', threshold:0.45, get:m=>m.mouthSmile,
-        tip:'입꼬리를 옆으로 당기지 마세요. 웃으면 볼이 올라가서 부풀린 것과 비슷해 보이는데, 그건 복어가 아닙니다.'}
-    ]
+  { id:'cry_smile', letter:'B', label:'울면서 웃기', kind:'tug', face:'B',
+    descHtml:'입은 웃고, <b>눈썹 안쪽은 슬프게</b> 올리세요. AI가 기쁨인지 슬픔인지 못 정하게!',
+    chips:[['눈썹: 슬픔','sad'],['입: 기쁨','joy']],
+    left: {key:'joyE', name:'기쁨', tone:'joy', more:'입꼬리를 더 올려 웃으세요', less:'웃음을 조금 줄이세요'},
+    right:{key:'sadE', name:'슬픔', tone:'sad', more:'눈썹 안쪽을 더 끌어올리세요', less:'눈썹 힘을 조금 빼세요'},
+    preview:{L:42, R:38},
+    okHtml:'기쁨·슬픔 <b>둘 다 30% 이상</b> + 차이 <b>10%p 이내</b>로 헷갈림 구간에 <b>{hold}초</b>',
+    retryHtml:'<b>한 감정이 이김</b>(기쁨 70% · 슬픔 15%), 둘 다 낮은 무표정, {hold}초 전에 구간 밖',
+    holdName:'헷갈림 구간 유지',
+    neutralFb:'AI가 무표정으로 봐요. 입은 웃고, 눈썹 안쪽은 울 것처럼 끌어올리세요.',
+    explain:'AI는 얼굴을 기쁨·슬픔·화남 같은 감정 중 하나로 분류하도록 배웠습니다. 웃는 입은 기쁨을, 안쪽 끝이 올라간 팔자 눈썹은 슬픔을 가리켜요. 두 신호가 비슷한 세기로 동시에 나오면 AI는 어느 쪽으로도 정하지 못합니다. 한쪽이 조금만 세도 그쪽으로 기울기 때문에 두 표정의 세기를 맞추는 것이 핵심이에요. 웃음은 쉽게 커지니, 웃음을 조금 줄이고 눈썹에 힘을 주는 편이 대개 잘 됩니다.'
   },
-  { id:'brow_asym', label:'눈썹 비대칭', desc:'한쪽 눈썹만 올려서 두 눈썹의 높이를 서로 다르게 만드세요.',
-    explain:'얼굴 근육은 좌우가 한 쌍으로 함께 움직이도록 연결돼 있고, AI도 표정이 좌우 대칭이라는 전제 위에서 학습합니다. 눈썹은 그 전제를 깨기 가장 어려운 부위입니다. 한쪽 눈썹만 올린 얼굴은 AI가 배운 어떤 감정 패턴에도 들어맞지 않아, 표정인지 아닌지조차 확정하지 못하게 만듭니다. 어느 쪽을 올려도 됩니다. 반대쪽이 따라 올라가려 하면 손가락으로 가볍게 눌러 고정하는 연습이 도움이 됩니다.',
-    metrics:[
-      {key:'browAsym', label:'좌우 눈썹 높이차 · browAsym', cmp:'>=', threshold:0.45, get:m=>m.browAsym,
-        tip:'한쪽 눈썹만 이마 쪽으로 확실히 끌어올리세요. 두 눈썹이 같이 올라가면 높이차가 생기지 않아 통과되지 않습니다.'},
-      /* 카메라 화면은 거울처럼 좌우가 뒤집혀 보입니다. 그래서 측정상 '왼쪽'(browGapL)은
-         화면에서는 오른쪽에 나타납니다. 사용자가 보는 기준으로 이름을 붙입니다. */
-      {key:'browRaiseR', label:'화면 왼쪽 눈썹 · 올라간 정도', get:m=>m.browRaiseR, reference:true},
-      {key:'browRaiseL', label:'화면 오른쪽 눈썹 · 올라간 정도', get:m=>m.browRaiseL, reference:true}
-    ]
-  },
-  /* 보너스(최고 난이도). bonus:true 인 미션은 선택 화면 아래쪽 별도 칸에 표시되고,
-     '다시 뽑기'의 무작위 대상에서도 제외됩니다 — 일부러 고르는 도전이기 때문입니다. */
-  { id:'cross_face', label:'엇갈린 얼굴', bonus:true,
-    desc:'한쪽 눈썹을 올리고, 입꼬리는 그 반대쪽만 올리세요.',
-    explain:'얼굴 근육은 좌우가 한 쌍으로 함께 움직이고, 표정은 얼굴 위아래가 같은 감정을 가리킵니다. AI는 이 두 전제 위에서 학습했습니다. 이 미션은 두 전제를 동시에 깨뜨립니다 — 좌우를 어긋나게 만들면서, 위(눈썹)와 아래(입)가 서로 반대쪽을 향하게 하는 것입니다. 같은 쪽을 올리면 얼굴 한쪽이 통째로 올라간 하나의 비대칭 표정일 뿐이라 AI가 어렵지 않게 분류합니다. 반대쪽이어야 어떤 감정 패턴에도 들어맞지 않는 얼굴이 됩니다. 이 프로그램에서 만들 수 있는 가장 어려운 모순이고, 처음에는 거울을 보며 한 부위씩 따로 연습하는 편이 빠릅니다.',
-    metrics:[
-      {key:'browAsym', label:'눈썹 좌우 높이차 · browAsym', cmp:'>=', threshold:0.45, get:m=>m.browAsym,
-        tip:'한쪽 눈썹만 이마 쪽으로 끌어올리세요. 어느 쪽이든 괜찮습니다.'},
-      {key:'mouthAsym', label:'입꼬리 좌우 높이차 · mouthAsym', cmp:'>=', threshold:0.45, get:m=>m.mouthAsym,
-        tip:'한쪽 입꼬리만 대각선 위로 당기세요. 반대쪽은 힘을 완전히 빼야 합니다.'},
-      /* dependent: 다른 조건들이 먼저 성립해야 의미가 생기는 조건. 눈썹도 입꼬리도
-         아직 안 움직였는데 "둘이 같은 쪽입니다"라고 안내하면 엉뚱한 조언이 됩니다.
-         그래서 다른 조건이 하나라도 모자라면 그쪽을 먼저 짚어줍니다. */
-      {key:'crossAsym', label:'엇갈림 · 반대쪽인지', cmp:'>=', threshold:0.5, get:m=>m.crossAsym, dependent:true, binary:true, binaryText:'반대쪽',
-        tip:'지금은 눈썹과 입꼬리가 같은 쪽입니다. 둘 중 하나를 반대쪽으로 바꾸세요.'},
-      {key:'browRaiseR', label:'화면 왼쪽 눈썹 · 올라간 정도', get:m=>m.browRaiseR, reference:true},
-      {key:'browRaiseL', label:'화면 오른쪽 눈썹 · 올라간 정도', get:m=>m.browRaiseL, reference:true}
-    ]
+  { id:'cry_angry', letter:'C', label:'울면서 화내기', kind:'tug', face:'C',
+    descHtml:'눈썹은 <b>화난 듯 찌푸리고</b>, 입꼬리는 <b>울 것처럼</b> 내리세요. AI가 화남인지 슬픔인지 못 정하게!',
+    chips:[['눈썹: 화남','anger'],['입: 슬픔','sad']],
+    left: {key:'angerE', name:'화남', tone:'anger', more:'미간을 더 세게 찌푸려 눈썹을 내리세요', less:'눈썹 힘을 조금 빼세요'},
+    right:{key:'sadE',   name:'슬픔', tone:'sad',   more:'입꼬리를 더 아래로 내리세요', less:'입꼬리 힘을 조금 빼세요'},
+    preview:{L:41, R:39},
+    okHtml:'화남·슬픔 <b>둘 다 30% 이상</b> + 차이 <b>10%p 이내</b>로 헷갈림 구간에 <b>{hold}초</b>',
+    retryHtml:'<b>한 감정이 이김</b>(화남 70% · 슬픔 15%), 둘 다 낮은 무표정, {hold}초 전에 구간 밖',
+    holdName:'헷갈림 구간 유지',
+    neutralFb:'AI가 무표정으로 봐요. 눈썹은 아래로 찌푸리고, 입꼬리는 울 것처럼 내리세요.',
+    explain:'슬픔과 화남은 둘 다 찡그린 얼굴이라, AI도 세부 신호로 구별합니다. 눈썹이 아래로 모여 V자가 되면 화남, 입꼬리가 아래로 처지면 슬픔이에요. 떼쓰며 우는 아이처럼 두 신호를 같은 세기로 만들면 AI는 우는 건지 화난 건지 정하지 못합니다. 눈썹 안쪽을 위로 올리면(팔자 눈썹) 화남이 아니라 슬픔으로 읽히니, 눈썹은 꼭 아래로 내리세요.'
   }
 ];
-const MAIN_MISSIONS=MISSIONS.filter(m=>!m.bonus);
+const fillHold = s => String(s).split('{hold}').join(String(holdSeconds()));
+
+/* 미션의 판정 조건 이름들. 같은 이름으로 디바운스 상태·칩·결과표를 맞춥니다. */
+function condKeys(m){ return m.kind==='zones' ? m.bars.map(b=>b.key) : ['L','R','gap']; }
+/* 이번 프레임에 AI가 읽은 값(정수 %). */
+function readVals(m, metrics){
+  if(m.kind==='zones'){
+    const v={}; m.bars.forEach(b=>{ v[b.key]=pctInt(b.get(metrics)); }); return v;
+  }
+  return tugPercents(metrics[m.left.key], metrics[m.right.key]);
+}
+/* 값 → 조건별 통과 여부와 '성공까지 모자란 양'(d). 프레임 판정, 0.3초 평균, 결과표가 모두
+   이 함수 하나로 판정하므로 서로 어긋날 수 없습니다. */
+function evalVals(m, v){
+  if(m.kind==='zones'){
+    const ok={}; let d=0;
+    m.bars.forEach(b=>{
+      const x=v[b.key];
+      ok[b.key] = b.cmp==='>=' ? x>=b.th : x<=b.th;
+      d += b.cmp==='>=' ? Math.max(0,b.th-x) : Math.max(0,x-b.th);
+    });
+    return {ok, d, all:m.bars.every(b=>ok[b.key])};
+  }
+  const gap=Math.abs(v.L-v.R);
+  const ok={L:v.L>=TUG_MIN, R:v.R>=TUG_MIN, gap:gap<=TUG_GAP};
+  const d=Math.max(0,TUG_MIN-v.L)+Math.max(0,TUG_MIN-v.R)+Math.max(0,gap-TUG_GAP);
+  return {ok, d, all:ok.L&&ok.R&&ok.gap, gap};
+}
+/* AI의 한마디. 헷갈릴 때(=성공 상태)는 분홍, 확신할 때는 회색 바탕 진한 글자, 아무것도 못
+   읽을 때(무표정)는 흐린 회색입니다. */
+function aiSay(m, v, ok){
+  if(m.kind==='zones'){
+    if(ok.mouth && ok.eye) return {text:m.say.pass, tone:''};
+    if(!ok.mouth) return {text:m.say.mouth, tone:'flat'};
+    return {text:m.say.eyes, tone:'sure'};
+  }
+  if(ok.L && ok.R && ok.gap) return {text:'AI: '+m.left.name+'...? '+m.right.name+'...? 모르겠어요', tone:''};
+  if(!ok.L && !ok.R) return {text:'AI: 무표정이네요', tone:'flat'};
+  const win = v.L>=v.R ? m.left : m.right;
+  return Math.abs(v.L-v.R)>=30 ? {text:'AI: 이건 '+win.name+'이에요!', tone:'sure'}
+                               : {text:'AI: 음… '+win.name+' 쪽 같아요', tone:'sure'};
+}
+/* 지금 무엇을 고치면 되는지. 한 번에 하나만, 가장 먼저 할 일을 말합니다. */
+function feedbackFor(m, v, ok){
+  if(m.kind==='zones'){
+    if(ok.mouth && ok.eye) return {kind:'ok', text:'AI가 헷갈려해요! 그대로 '+holdSeconds()+'초 버티세요.'};
+    return {kind:'bad', text: ok.mouth ? m.fb.eyes : m.fb.mouth};
+  }
+  if(ok.L && ok.R && ok.gap) return {kind:'ok', text:'AI가 헷갈려해요! 그대로 '+holdSeconds()+'초 버티세요.'};
+  if(!ok.L && !ok.R) return {kind:'bad', text:m.neutralFb};
+  if(ok.gap){
+    const weak = !ok.L ? m.left : m.right;
+    return {kind:'bad', text:weak.name+'이 30%에 못 미쳐요. '+weak.more+'.'};
+  }
+  const leftWins = v.L>v.R, win = leftWins ? m.left : m.right, lose = leftWins ? m.right : m.left;
+  const loseVal = leftWins ? v.R : v.L;
+  return {kind:'bad', text:win.name+'이 이기고 있어요. '+(loseVal>=TUG_MIN ? win.less : lose.more)+'.'};
+}
+
+/* 카드와 결과 화면의 얼굴 그림. 미션마다 '어디를 어떻게'를 한눈에 보여줍니다. */
+function faceSvg(kind){
+  const L='var(--face-line)';
+  const line=(d,w)=>'<path d="'+d+'" fill="none" stroke="'+L+'" stroke-width="'+(w||5)+'" stroke-linecap="round" stroke-linejoin="round"/>';
+  const dots='<circle cx="41" cy="56" r="5" fill="'+L+'"/><circle cx="79" cy="56" r="5" fill="'+L+'"/>';
+  const tear='<path d="M34 64 C31 70 31.5 74 34.5 74.5 C37.5 74 38 70 34 64 Z" fill="#4f86f7"/>';
+  let inner='';
+  if(kind==='A'){
+    inner = line('M29 39 H51 M69 39 H91')+
+      '<ellipse cx="40" cy="54" rx="10.5" ry="7" fill="#fff" stroke="'+L+'" stroke-width="3.5"/><circle cx="40" cy="54" r="4" fill="'+L+'"/>'+
+      '<ellipse cx="80" cy="54" rx="10.5" ry="7" fill="#fff" stroke="'+L+'" stroke-width="3.5"/><circle cx="80" cy="54" r="4" fill="'+L+'"/>'+
+      '<path d="M29 70 H91 A31 27 0 0 1 29 70 Z" fill="'+L+'"/><path d="M35 72 H85 L83 79 H37 Z" fill="#fff"/>';
+  } else if(kind==='B'){
+    inner = line('M28 45 Q38 37 51 35')+line('M69 35 Q82 37 92 45')+dots+tear+line('M39 75 Q60 93 81 75');
+  } else {
+    inner = line('M29 34 L51 44')+line('M69 44 L91 34')+dots+tear+line('M41 88 Q60 70 79 88');
+  }
+  return '<svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="53" fill="var(--face)" stroke="'+L+'" stroke-width="5"/>'+inner+'</svg>';
+}
+const ICON_OK='<svg class="ico" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9.5" fill="currentColor"/><path d="M5.8 10.3l2.7 2.7 5.7-5.8" fill="none" stroke="var(--card-in)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICON_RETRY='<svg class="ico" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9.5" fill="currentColor"/><path d="M14 8.2A4.6 4.6 0 1 0 14.5 11.6" fill="none" stroke="var(--card-in)" stroke-width="2.1" stroke-linecap="round"/><path d="M14.6 4.8v3.6H11" fill="none" stroke="var(--card-in)" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 let step='idle';
 let faceMesh=null, processing=false, lastFaceTime=0;
 let currentMission=null;
-let holdAccum=0, roundState={}, bestPerMetric={}, sawAllPassFrame=false,
-    timeLimitStart=null, challengeDone=false;
+let holdAccum=0, roundState={}, timeLimitStart=null, challengeDone=false;
+/* 결과 화면에 쓸 이번 판의 기록.
+   win     : 지금 쌓고 있는 0.3초 구간
+   clsTime : 0.3초 구간들을 '상태'(입꼬리 부족 · 눈까지 웃음 · 무표정 · 한쪽이 이김 …)로
+             나눠, 상태마다 머문 시간. 실패 이유는 가장 오래 머문 상태로 고릅니다.
+             '가장 가까웠던 한 순간'만 보고 고르면, 표정을 짓는 도중 잠깐 스친 값이 뽑혀
+             실제로 한 것과 반대되는 조언이 나갈 수 있습니다.
+   bestBy  : 상태별로 성공에 가장 가까웠던 구간의 평균값(결과표 '가장 가까웠던 순간')
+   streak  : 지금 이어지는 유지 구간의 평균값(성공했을 때 '성공한 순간') */
+let roundStats=null;
+function resetRoundStats(){
+  roundStats={win:null, best:null, bestBy:{}, clsTime:{}, streak:null, sawPassWin:false, maxHold:0,
+    /* 도전이 시작되면 누구나 잠깐은 무표정입니다(표정을 준비하는 시간). 이 구간까지 세면
+       준비가 느린 사람은 그 뒤에 무엇을 했든 '무표정'이 가장 길어집니다. 그래서 표정이
+       처음 움직이기 전의 구간은 따로 모아 두고, 끝까지 한 번도 움직이지 않았을 때만 씁니다. */
+    active:false, pre:{bestBy:{}, clsTime:{}}};
+}
+/* 무표정에서 벗어나기 시작했는지(어느 값이든 15% 이상). 잡음은 보통 5% 안쪽입니다. */
+function movedFromNeutral(m, v){
+  return m.kind==='zones' ? (v.mouth>=15 || v.eye>=15) : Math.max(v.L, v.R)>=15;
+}
+/* 0.3초 평균값이 어떤 상태인지. 시안의 '다시 도전' 이유와 같은 갈래입니다. */
+function stateClass(m, v, ev){
+  if(ev.all) return 'pass';
+  if(m.kind==='zones') return ev.ok.mouth ? 'eyes' : 'mouth';
+  if(!ev.ok.L && !ev.ok.R) return 'neutral';
+  if(ev.ok.gap) return 'weak';
+  return v.L>v.R ? 'wonL' : 'wonR';
+}
+resetRoundStats();
 /* 도전 타이머 루프 핸들은 하나만 둡니다. 예전에는 변수가 두 개(timeLeftAnim / challengeAnimId)여서
    '다시 도전'을 누르면 이전 루프가 취소되지 않고 남아 루프가 둘 돌 수 있었습니다. */
 let challengeAnimId=null;
 let readyTimer=null, autoReturnTimer=null;
-let lastResultMission=null, lastResultFailedMetric=null;
+let lastResultMission=null;
 
 const $=id=>document.getElementById(id);
 function setStep(s){
@@ -1013,19 +1173,28 @@ function setStep(s){
 }
 
 function pickMission(excludeId){
-  /* 보너스 미션은 무작위로 뽑지 않습니다. 최고 난이도를 모르고 시작하면 전시장에서
-     첫 도전이 실패로 끝나기 쉽습니다. */
-  let pool=MAIN_MISSIONS;
+  let pool=MISSIONS;
   if(excludeId && pool.length>1) pool=pool.filter(m=>m.id!==excludeId);
-  if(!pool.length) pool=MAIN_MISSIONS;
   return pool[Math.floor(Math.random()*pool.length)];
+}
+function cardHtml(m, sel){
+  const chips=m.chips.map(c=>'<span class="chip '+c[1]+'">'+c[0]+'</span>').join('');
+  let h='<div class="mc-left"><div class="mc-face">'+faceSvg(m.face)+'</div><div class="mc-chips">'+chips+'</div></div>'+
+    '<div class="mc-right"><div class="mc-head"><span class="mc-letter">'+m.letter+'</span><h3>'+m.label+'</h3>'+
+    '<span class="mc-tag">선택됨</span></div><p class="mc-desc">'+m.descHtml+'</p>';
+  if(sel){
+    h+='<div class="mc-detail"><div class="gbox">'+gaugeHtml(m,false)+'</div><div class="mc-boxes">'+
+       '<div class="mc-box ok"><h5>'+ICON_OK+'성공</h5><div>'+fillHold(m.okHtml)+'</div></div>'+
+       '<div class="mc-box retry"><h5>'+ICON_RETRY+'다시 도전</h5><div>'+fillHold(m.retryHtml)+'</div></div></div></div>';
+  }
+  return h+'</div>';
 }
 function renderCards(){
   /* currentMission이 비어 있으면 이후 전부 null 참조로 터집니다. 정상 흐름에서는 goSelect가
      먼저 채우지만, 어떤 경로로든 비어 있으면 조용히 하나를 골라 화면을 지킵니다. */
   if(!currentMission) currentMission=pickMission();
-  const wrap=$('cardsWrap'), bonusWrap=$('bonusWrap');
-  wrap.innerHTML=''; if(bonusWrap) bonusWrap.innerHTML='';
+  const wrap=$('cardsWrap');
+  wrap.innerHTML='';
   MISSIONS.forEach(m=>{
     const sel = m.id===currentMission.id;
     const card=document.createElement('div');
@@ -1033,11 +1202,19 @@ function renderCards(){
     card.tabIndex=0;
     card.setAttribute('role','button');
     card.setAttribute('aria-pressed', sel?'true':'false');
-    card.innerHTML = '<div class="tag">선택됨</div><h3>'+m.label+'</h3><p>'+m.desc+'</p><div class="cond">'+missionCond(m)+'</div>';
-    const choose=()=>{ if(readyTimer) return; currentMission=m; showCalibNote(''); renderCards(); };
+    card.setAttribute('aria-label', '미션 '+m.letter+' '+m.label);
+    card.innerHTML = cardHtml(m, sel);
+    /* 미리보기 막대는 도전 화면과 같은 함수로 그립니다. 시안의 예시 숫자를 넣습니다. */
+    if(sel){ const g=card.querySelector('.gbox'); if(g) paintGauge(bindGauge(g,m), previewState(m), 0, true); }
+    const choose=()=>{
+      if(readyTimer || m.id===currentMission.id) return;
+      currentMission=m; showCalibNote(''); renderCards();
+      /* 카드를 다시 그리면 키보드 포커스가 사라집니다. 고른 카드로 되돌려 줍니다. */
+      const s=wrap.querySelector('.mcard.sel'); if(s) s.focus({preventScroll:true});
+    };
     card.addEventListener('click', choose);
     card.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); choose(); } });
-    ((m.bonus && bonusWrap) ? bonusWrap : wrap).appendChild(card);
+    wrap.appendChild(card);
   });
 }
 /* 안내 문구는 두 곳(사이드 패널·카메라 위 오버레이)에 나타나므로 반드시 한 곳에서만
@@ -1282,7 +1459,7 @@ $('readyBtn').addEventListener('click', ()=>{
 
 function startChallenge(){
   if(!currentMission) currentMission=pickMission();
-  holdAccum=0; roundState={}; bestPerMetric={}; sawAllPassFrame=false; challengeDone=false;
+  holdAccum=0; roundState={}; resetRoundStats(); challengeDone=false;
   lastFrameT=null; resetBlink(); resetAnchors();
   /* 지난 라운드의 점 위치가 새 영상 프레임 위에 한 번 겹쳐 그려지지 않게 비웁니다. */
   pendingLm=null; pendingDirty=false;
@@ -1291,11 +1468,13 @@ function startChallenge(){
   resetSmooth();
   primeFilters();
   timeLimitStart=performance.now()/1000;
-  $('challengeMissionTitle').textContent=currentMission.label;
+  $('challengeMissionTitle').innerHTML='<span class="mc-letter">'+currentMission.letter+'</span>'+currentMission.label;
+  $('challengeDesc').innerHTML=currentMission.descHtml;
+  $('holdName').textContent=currentMission.holdName;
   setFeedback('', '얼굴을 화면 중앙에 맞춰주세요');
-  /* 유지 게이지 초기화는 buildMetricRows → resetGauges에서 함께 합니다. */
+  /* 유지 게이지 초기화는 buildLiveGauge → resetGauges에서 함께 합니다. */
   $('holdLabel').textContent='0.0 / '+holdSeconds().toFixed(1)+'s';
-  buildMetricRows();
+  buildLiveGauge();
   setStep('challenge');
   cancelAnimationFrame(challengeAnimId);
   challengeAnimId=requestAnimationFrame(challengeLoop);
@@ -1308,13 +1487,13 @@ function startChallenge(){
    게다가 그 DOM 쓰기 비용이 인식 비용으로 함께 측정되어 인식 간격을 더 늘리는 악순환이
    있었습니다(MediaPipe가 send() 안에서 콜백을 바로 호출하기 때문입니다).
    이제 측정은 인식 속도대로, 그리기는 화면 속도(초당 30번)로 따로 돌립니다.
-   판정·숫자는 측정값 그대로 쓰고, 부드럽게 만드는 것은 막대 폭뿐입니다. */
-let metricEls={}, gaugeTarget={}, gaugeColor={}, holdFillEl=null;
+   판정·숫자는 측정값 그대로 쓰고, 부드럽게 만드는 것은 막대와 표시의 움직임뿐입니다. */
+let liveGauge=null, liveState=null, holdFillEl=null;
 let holdTarget=0, holdShown=0;
 /* 측정 간격의 이동평균. 게이지 이동 시간을 여기에 맞춥니다. */
 let gaugeIntervalEma=0, lastTargetT=0;
 function resetGauges(){
-  metricEls={}; gaugeTarget={}; gaugeColor={};
+  liveState=null;
   holdTarget=0; holdShown=0;
   gaugeIntervalEma=0; lastTargetT=0;
   holdFillEl=$('holdFill');
@@ -1324,26 +1503,96 @@ function resetGauges(){
     holdFillEl.dataset.d='0ms'; holdFillEl.dataset.t='scaleX(0.0000)';
   }
 }
-function buildMetricRows(){
-  const list=$('metricsList'); list.innerHTML='';
+/* 판정 막대 한 벌의 HTML. live=false는 선택 화면 카드의 미리보기(시안의 '화면에서 이렇게
+   보여요'), live=true는 도전 화면입니다. 도전 화면에는 조건 칩과 AI의 한마디가 더 붙습니다. */
+function gaugeHtml(m, live){
+  const title = live ? 'AI가 읽은 내 표정' : '화면에서 이렇게 보여요';
+  if(m.kind==='zones'){
+    let h='<div class="gbox-head"><span class="gbox-title">'+title+'</span></div>';
+    m.bars.forEach(b=>{
+      h+='<div class="zrow"><span class="zname">'+b.name+'</span>'+
+         '<div class="zwrap"><div class="ztrack"><div class="zfill" data-k="'+b.key+'"></div></div>'+
+         '<div class="zzone" style="left:calc('+b.zone[0]+'% - 5px);width:calc('+(b.zone[1]-b.zone[0])+'% + 10px)"></div></div>'+
+         '<span class="zval" data-v="'+b.key+'">0%</span></div>';
+    });
+    h+='<div class="gfoot"><span>막대 두 개가 모두 <b>점선 칸 안</b>에 있으면 OK</span>'+
+       (live ? '<span class="ai-say flat" data-say></span>' : '')+'</div>';
+    if(live) h+='<div class="cond-chips">'+m.bars.map(b=>'<span class="cond" data-c="'+b.key+'">'+
+       b.name+' '+b.th+'% '+(b.cmp==='>='?'이상':'이하')+'</span>').join('')+'</div>';
+    return h;
+  }
+  const L=m.left, R=m.right;
+  let h='<div class="gbox-head"><span class="gbox-title">'+title+' · 줄다리기 막대</span>'+
+    '<span class="tug-vals"><span class="ink-'+L.tone+'" data-v="L"></span> · <span class="ink-'+R.tone+'" data-v="R"></span></span></div>'+
+    '<div class="tug" style="--tl:var(--'+L.tone+'-tint);--tr:var(--'+R.tone+'-tint)">'+
+      '<span class="tug-end ink-'+L.tone+'">◀ '+L.name+'</span>'+
+      '<div class="tug-rail"><div class="tug-area"><div class="tug-track"></div><div class="tug-zone"></div>'+
+      '<div class="tug-pos"><div class="tug-marker"></div></div></div></div>'+
+      '<span class="tug-end ink-'+R.tone+'">'+R.name+' ▶</span></div>'+
+    '<div class="gfoot"><span>표시가 <b class="zone-ink">가운데 분홍 칸(헷갈림 구간)</b>에 들어가면</span><span class="ai-say" data-say></span></div>';
+  if(live) h+='<div class="cond-chips"><span class="cond" data-c="L">'+L.name+' 30% 이상</span>'+
+    '<span class="cond" data-c="R">'+R.name+' 30% 이상</span><span class="cond" data-c="gap">차이 10%p 이내</span></div>';
+  return h;
+}
+function bindGauge(root, m){
+  const r={m, fills:{}, vals:{}, conds:{}, cache:{},
+    say:root.querySelector('[data-say]'), pos:root.querySelector('.tug-pos'),
+    marker:root.querySelector('.tug-marker'), zone:root.querySelector('.tug-zone')};
+  root.querySelectorAll('[data-k]').forEach(el=>{ r.fills[el.dataset.k]=el; });
+  root.querySelectorAll('[data-v]').forEach(el=>{ r.vals[el.dataset.v]=el; });
+  root.querySelectorAll('[data-c]').forEach(el=>{ r.conds[el.dataset.c]=el; });
+  return r;
+}
+/* 매 측정마다 불리므로, 글자와 클래스는 바뀔 때만 씁니다(같은 값을 다시 쓰면 브라우저가
+   스타일을 다시 계산합니다). */
+function putText(r, key, el, text){ if(el && r.cache[key]!==text){ el.textContent=text; r.cache[key]=text; } }
+function putClass(r, key, el, cls){ if(el && r.cache[key]!==cls){ el.className=cls; r.cache[key]=cls; } }
+/* st = {vals, ok, say}. vals는 정수 %, ok는 조건별 (디바운스된) 통과 여부입니다. */
+function paintGauge(r, st, durMs, snap){
+  const m=r.m, v=st.vals, ok=st.ok;
+  if(m.kind==='zones'){
+    m.bars.forEach(b=>{
+      setGauge(r.fills[b.key], v[b.key]/100, durMs, snap);
+      putClass(r, 'f'+b.key, r.fills[b.key], 'zfill'+(ok[b.key]?'':' bad'));
+      putText(r, 'v'+b.key, r.vals[b.key], v[b.key]+'%');
+    });
+  } else {
+    putText(r, 'vL', r.vals.L, m.left.name+' '+v.L+'%');
+    putText(r, 'vR', r.vals.R, m.right.name+' '+v.R+'%');
+    /* 표시 위치 = 가운데에서 (오른쪽 − 왼쪽)/2 만큼. 차이 10%p면 정확히 분홍 칸 끝(45·55%)입니다. */
+    setGauge(r.pos, 0.5+(v.R-v.L)/200, durMs, snap, 'move');
+    /* 표시가 분홍 칸 안에 있어도 둘 중 하나라도 30% 미만이면 흐리게 그립니다. 약해서 생긴
+       '가운데'는 헷갈림이 아니라 그냥 무표정에 가깝기 때문입니다. 칸 밖(한쪽이 이기는 중)일
+       때는 AI가 확신하고 있으므로 진하게 그립니다. */
+    putClass(r, 'mk', r.marker, 'tug-marker'+((ok.gap && !(ok.L&&ok.R))?' weak':''));
+    putClass(r, 'zn', r.zone, 'tug-zone'+(ok.L&&ok.R&&ok.gap?' on':''));
+  }
+  for(const k in r.conds) putClass(r, 'c'+k, r.conds[k], 'cond '+(ok[k]?'ok':'bad'));
+  if(r.say && st.say){
+    putText(r, 'say', r.say, st.say.text);
+    putClass(r, 'sayc', r.say, 'ai-say'+(st.say.tone?' '+st.say.tone:''));
+  }
+}
+/* 선택 화면 미리보기: 시안의 예시 숫자(72% · 12%, 기쁨 42% · 슬픔 38%)로 그립니다. */
+function previewState(m){
+  const vals={};
+  if(m.kind==='zones') m.bars.forEach(b=>{ vals[b.key]=b.preview; });
+  else { vals.L=m.preview.L; vals.R=m.preview.R; }
+  const ok=evalVals(m, vals).ok;
+  return {vals, ok, say:aiSay(m, vals, ok)};
+}
+function waitingState(m, text){
+  const vals={};
+  if(m.kind==='zones') m.bars.forEach(b=>{ vals[b.key]=0; });
+  else { vals.L=0; vals.R=0; }
+  return {vals, ok:evalVals(m, vals).ok, say:{text:text, tone:'flat'}};
+}
+function buildLiveGauge(){
+  const box=$('liveGauge');
+  box.innerHTML=gaugeHtml(currentMission, true);
   resetGauges();
-  currentMission.metrics.forEach(mt=>{
-    const row=document.createElement('div'); row.className='metric'; row.id='row-'+mt.key;
-    row.innerHTML =
-      '<div class="metric-top"><span class="name">'+mt.label+'</span>'+
-      (mt.reference ? '<span class="val" id="val-'+mt.key+'">0.00</span>' :
-        '<span><span class="pass-badge ok" id="badge-'+mt.key+'">통과</span> <span class="val" id="val-'+mt.key+'">0.00</span></span>')+
-      /* 참고 행에는 막대를 두지 않습니다. 기준이 없는 값인데 기준선 눈금이 있는 빈 막대가
-         보이면 통과해야 하는 조건처럼 오해됩니다. */
-      (mt.reference ? '' :
-        '</div><div class="metric-track"><div class="metric-fill" id="fill-'+mt.key+'" style="background:var(--good)"></div>')+
-      '</div><div class="metric-hint">'+(mt.reference ? '참고용'
-        : (mt.binary ? (mt.binaryText||'만족')+'이어야 해요'
-                     : fmtThreshold(mt)+(mt.cmp==='>='?' 이상이어야 해요':' 이하여야 해요')))+'</div>';
-    list.appendChild(row);
-    metricEls[mt.key]={ fill:$('fill-'+mt.key), val:$('val-'+mt.key), badge:$('badge-'+mt.key),
-                        lastVal:'', lastBadge:'' };
-  });
+  liveGauge=bindGauge(box, currentMission);
+  paintGauge(liveGauge, waitingState(currentMission, 'AI: 표정을 읽는 중…'), 0, true);
 }
 
 let lastFrameT=null;
@@ -1400,12 +1649,12 @@ function onResults(results){
     const browGapL=pushSmooth('browGapL',computeBrowGapL(rot.get,S),dt);
     const browGapR=pushSmooth('browGapR',computeBrowGapR(rot.get,S),dt);
     const browGap=(browGapL+browGapR)/2;
-    const cheekWidth=pushSmooth('cheekWidth',computeCheekWidth(rot.get,S),dt);
-    const cheekBulge=pushSmooth('cheekBulge',computeCheekBulge(rot.get,S),dt);
     const browKnit=pushSmooth('browKnit',computeBrowKnit(rot.get,S),dt);
     const browSlant=pushSmooth('browSlant',computeBrowSlant(rot.get,S),dt);
     const riseL=pushSmooth('riseL',computeCornerRise(rot.get,S,MOUTH_L),dt);
     const riseR=pushSmooth('riseR',computeCornerRise(rot.get,S,MOUTH_R),dt);
+    const dropL=pushSmooth('dropL',computeCornerDrop(rot.get,S,MOUTH_L),dt);
+    const dropR=pushSmooth('dropR',computeCornerDrop(rot.get,S,MOUTH_R),dt);
     /* 자세 판정은 필터를 거치지 않은 값으로 합니다. 필터를 거치면 고개를 빨리 돌렸을 때
        0.1~0.2초 동안 "아직 정면"으로 보여 그 구간이 잘못 측정되기 때문입니다.
        이 두 지표는 눈꼬리·코끝처럼 멀리 떨어진 안정적인 점으로 계산해 노이즈가 작습니다.
@@ -1426,27 +1675,36 @@ function onResults(results){
       const cq=calibQuality(S,yawRaw,jump,true);
       showCalibHint(cq.ok?'ok':'warn', cq.why);
       feedCalibration({lidL,lidR,mouthWidth,browGap,riseL,riseR,yaw,pitch,browKnit,browSlant,
-        cheekWidth,cheekBulge,browGapL,browGapR,
+        browGapL,browGapR,dropL,dropR,
         yawRaw:yawRaw, widthRaw:computeMouthWidthNorm(rot.get,S)});
     }
 
     const rawLiftL=rawCornerLift(riseL, baseline.riseL);
     const rawLiftR=rawCornerLift(riseR, baseline.riseR);
     const liftL=scoreCornerLift(riseL, baseline.riseL), liftR=scoreCornerLift(riseR, baseline.riseR);
+    const closure=eyeClosureGuarded(lidClosure((lidL+lidR)/2), holdLidFilter);
+    const brow=browSignals(browGap, browKnit, browSlant);
+    const mouthSmile=scoreMouthSmile(mouthWidth, (rawLiftL+rawLiftR)/2);
+    const sadBrow=scoreSadBrow(brow), angerBrow=scoreAngerBrow(brow);
+    const mouthFrown=scoreMouthFrown(dropL, dropR);
     const metrics={
       /* eyeFrozen: 이 프레임의 눈 수치가 실측이 아니라 깜빡임 직전 값으로 얼어 있다는 표시.
-         결과표에 보여줄 '가장 잘한 순간'을 고를 때 이런 프레임을 제외하는 데 씁니다. */
+         결과표의 '가장 가까웠던 순간'을 고를 때 이런 프레임을 제외하는 데 씁니다. */
       eyeFrozen: holdLidFilter,
-      mouthSmile: scoreMouthSmile(mouthWidth, (rawLiftL+rawLiftR)/2),
-      eyeSquint: eyeSquintGuarded(scoreEyeSquint((lidL+lidR)/2), holdLidFilter),
+      mouthSmile: mouthSmile,
+      eyeSmile: scoreEyeSmile(closure, browGap),
+      /* AI가 읽은 감정의 세기(0~1). 줄다리기 막대의 두 숫자입니다. */
+      joyE: mouthSmile,
+      sadE: Math.max(sadBrow, mouthFrown),
+      angerE: angerBrow,
+      /* 아래는 그림(AI 인식 모델)을 움직이는 데만 씁니다. */
+      eyeSquint: scoreEyeSquint(closure),
       browDrop: scoreBrowDrop(browGap),
-      sadBrow: scoreSadBrow(browKnit, browSlant),
+      sadBrow: sadBrow,
+      angerBrow: angerBrow,
+      mouthFrown: mouthFrown,
       cornerL: liftL,
       cornerR: liftR,
-      cheekPuff: scoreCheekPuff(cheekWidth, cheekBulge),
-      browAsym: scoreBrowAsym(browGapL, browGapR),
-      mouthAsym: scoreMouthAsym(liftL, liftR),
-      crossAsym: scoreCrossAsym(browAsymSigned(browGapL,browGapR), liftL, liftR),
       browRaiseL: scoreBrowRaise(browGapL, baseline.browGapL),
       browRaiseR: scoreBrowRaise(browGapR, baseline.browGapR),
       mar: mar
@@ -1478,8 +1736,8 @@ function onResults(results){
 
 /* --- 얼굴 스키매틱 애니메이션: 실제 인식값(targetMetrics)을 부드럽게 보간(lerp)하여
    프레임 노이즈나 인식 프레임 저하와 무관하게 표정 모션이 자연스럽게 보이도록 처리 --- */
-const MOTION_KEYS=['mouthSmile','eyeSquint','browDrop','sadBrow','cornerL','cornerR','mar','cheekPuff','browAsym','browRaiseL','browRaiseR','mouthAsym','crossAsym'];
-const DECAY_KEYS=['mouthSmile','eyeSquint','browDrop','sadBrow','cornerL','cornerR','mar','cheekPuff','browAsym','browRaiseL','browRaiseR','mouthAsym','crossAsym'];
+const MOTION_KEYS=['mouthSmile','eyeSquint','browDrop','sadBrow','angerBrow','mouthFrown','cornerL','cornerR','mar','browRaiseL','browRaiseR'];
+const DECAY_KEYS=MOTION_KEYS;
 function zeroMetrics(){ const o={}; MOTION_KEYS.forEach(k=>o[k]=0); return o; }
 let targetMetrics=zeroMetrics();
 let displayMetrics=zeroMetrics();
@@ -1502,14 +1760,14 @@ function renderFaceSvg(raw, blinkVal, tNow){
   eyeL.setAttribute('ry',ry.toFixed(2)); eyeR.setAttribute('ry',ry.toFixed(2));
 
   /* 눈썹: 아래로 내려오는 정도(browDrop)에 더해, 슬픈 눈썹일 때는 안쪽 끝을 들어올리고
-     좌우를 서로 가깝게 당겨 '울 것 같은' 모양을 실제로 만들어 보여줍니다. 사용자가 자기
-     눈썹이 조건을 만족했는지 수치가 아니라 모양으로 바로 알 수 있게 하기 위한 것입니다. */
+     (팔자), 화난 눈썹일 때는 안쪽 끝을 끌어내립니다('V'자). 둘 다 미간 쪽으로 모입니다.
+     사용자가 AI가 자기 눈썹을 어떤 감정으로 읽고 있는지 수치가 아니라 모양으로 바로 알 수
+     있게 하기 위한 것입니다. */
   const browDrop=Math.max(m.eyeSquint*0.5, m.browDrop)*9;
-  const sad=m.sadBrow;
-  const innerUp=sad*11, knitIn=sad*7;
+  const sad=clamp(m.sadBrow,0,1), ang=clamp(m.angerBrow,0,1);
+  const innerUp=sad*11-ang*10, knitIn=sad*7+ang*6;
   /* 좌우 눈썹을 따로 올립니다. 대칭이면 두 값이 같아 전과 똑같이 보이고, 한쪽만 올리면
-     그림에서도 실제로 한쪽만 올라갑니다. '눈썹 비대칭' 미션에서 수치를 읽지 않고도
-     지금 어느 쪽이 올라갔는지 눈으로 확인할 수 있어야 하기 때문입니다.
+     그림에서도 실제로 한쪽만 올라갑니다.
      카메라 화면이 거울처럼 뒤집혀 보이므로, 그림의 왼쪽 눈썹에는 측정상 오른쪽(browRaiseR)
      값을 연결해 화면에서 보이는 쪽과 일치시킵니다. */
   const raiseSvgL=m.browRaiseR*10;        // 그림 왼쪽 ← 측정상 오른쪽(거울 반전)
@@ -1519,17 +1777,6 @@ function renderFaceSvg(raw, blinkVal, tNow){
   const rOut=95+browDrop*0.4-raiseSvgR, rIn=95+browDrop*0.4-innerUp-raiseSvgR;
   browL.setAttribute('d','M90,'+lOut.toFixed(1)+' Q110,'+(82+browDrop-innerUp*0.45-raiseSvgL).toFixed(1)+' '+(130+knitIn).toFixed(1)+','+lIn.toFixed(1));
   browR.setAttribute('d','M210,'+rOut.toFixed(1)+' Q190,'+(82+browDrop-innerUp*0.45-raiseSvgR).toFixed(1)+' '+(170-knitIn).toFixed(1)+','+rIn.toFixed(1));
-
-  /* 볼 부풀림. 부풀린 만큼 양쪽 볼이 실제로 커집니다. */
-  const cheekL=$('cheekL'), cheekR=$('cheekR');
-  if(cheekL && cheekR){
-    const puff=clamp(m.cheekPuff,0,1);
-    const crx=(puff*20).toFixed(1), cry=(puff*16).toFixed(1);
-    cheekL.setAttribute('rx',crx); cheekL.setAttribute('ry',cry);
-    cheekR.setAttribute('rx',crx); cheekR.setAttribute('ry',cry);
-    const op=clamp(puff*1.2,0,1).toFixed(2);
-    cheekL.setAttribute('opacity',op); cheekR.setAttribute('opacity',op);
-  }
 
   // subtle idle sway so the mouth model never looks perfectly frozen (cosmetic only)
   const cx = 150 + Math.sin(tNow/1400)*0.6;
@@ -1542,8 +1789,10 @@ function renderFaceSvg(raw, blinkVal, tNow){
   const topY=baseY+openAmt*0.15;
   // 좌우 입꼬리를 따로 올립니다. 대칭 표정에서는 두 값이 같아 기존과 동일하게 보이고,
   // 비대칭 미소에서는 실제로 올린 쪽만 올라갑니다. (SVG 좌측 = 화면상 왼쪽)
-  const topYL=topY-m.cornerL*13, topYR=topY-m.cornerR*13;
-  const midCtrlY=baseY-lift*0.5-openAmt*0.1;
+  // 울상 입(mouthFrown)은 반대로 입꼬리를 끌어내리고 가운데를 올려 '︵' 모양을 만듭니다.
+  const frown=clamp(m.mouthFrown,0,1)*12;
+  const topYL=topY-m.cornerL*13+frown, topYR=topY-m.cornerR*13+frown;
+  const midCtrlY=baseY-lift*0.5-openAmt*0.1-frown*0.9;
   const botCtrlY=baseY+openAmt*1.25;
   const upperD='M'+lx.toFixed(1)+','+topYL.toFixed(1)+' Q'+cx.toFixed(1)+','+midCtrlY.toFixed(1)+' '+rx.toFixed(1)+','+topYR.toFixed(1);
   const lowerD='Q'+cx.toFixed(1)+','+botCtrlY.toFixed(1)+' '+lx.toFixed(1)+','+topYL.toFixed(1);
@@ -1601,7 +1850,7 @@ function faceAnimLoop(now){
   }
   const k=1-Math.pow(0.001, dt/1000);
   // 입 관련 채널은 눈/눈썹보다 더 빠르게 추종합니다 — 화면에서 "제대로 보여야" 하는 부분이라서.
-  const speedMul={mouthSmile:4.2, mar:4.6, cornerL:4.4, cornerR:4.4, eyeSquint:3.4, browDrop:3.4, cheekPuff:4.0};
+  const speedMul={mouthSmile:4.2, mar:4.6, cornerL:4.4, cornerR:4.4, mouthFrown:4.2, eyeSquint:3.4, browDrop:3.4};
   MOTION_KEYS.forEach(key=>{
     const t=targetMetrics[key];
     if(!isFinite(t)) return;
@@ -1630,9 +1879,11 @@ requestAnimationFrame(faceAnimLoop);
 
    예전에는 매 프레임 자바스크립트로 폭을 계산해 써 넣었습니다. 그 방식은 메인 스레드가
    얼굴 인식으로 막히면 같이 멈춰서, 느린 노트북에서 게이지가 뚝뚝 끊겼습니다. */
-function setGauge(el, v, durMs, snap){
+/* mode 'move'는 줄다리기 표시처럼 자리를 옮기는 경우(가로 이동), 나머지는 막대 채우기(가로 확대). */
+function setGauge(el, v, durMs, snap, mode){
   if(!el) return;
-  const t='scaleX('+clamp(v,0,1).toFixed(4)+')';
+  const x=clamp(isFinite(v)?v:0,0,1);
+  const t = mode==='move' ? 'translateX('+(x*100).toFixed(2)+'%)' : 'scaleX('+x.toFixed(4)+')';
   const d=(snap?0:Math.round(durMs))+'ms';
   if(el.dataset.d!==d){ el.style.transitionProperty='transform';
     el.style.transitionTimingFunction='linear'; el.style.transitionDuration=d; el.dataset.d=d; }
@@ -1647,18 +1898,58 @@ function applyGauges(now){
   /* 다음 측정까지의 예상 시간보다 살짝 길게 잡습니다. 짧으면 도착한 뒤 멈춰 있는 구간이
      생겨 '계단'처럼 보이고, 너무 길면 반응이 늦게 느껴집니다. */
   const durMs=clamp((gaugeIntervalEma||1/30)*1.15, 1/60, 0.25)*1000;
-  for(const key in metricEls){
-    const els=metricEls[key];
-    if(!els || !els.fill) continue;
-    setGauge(els.fill, gaugeTarget[key]||0, durMs, false);
-    const c=gaugeColor[key];
-    if(c && els.lastColor!==c){ els.fill.style.background=c; els.lastColor=c; }
-  }
+  if(liveGauge && liveState) paintGauge(liveGauge, liveState, durMs, false);
   /* 유지 게이지가 줄어드는 것은 자세가 깨진 것입니다. 천천히 빠지면 아직 진행도가 남은
      줄 알게 되므로 즉시 떨어뜨립니다. */
   const snap = holdTarget < holdShown;
   setGauge(holdFillEl, holdTarget, durMs, snap);
   holdShown=holdTarget;
+}
+
+/* 판정이 순간 노이즈로 튀지 않도록 조건마다 디바운스합니다. 예전에는 '연속 N프레임'으로
+   셌는데, 그러면 30fps 기기에서는 66ms, 15fps 기기에서는 133ms가 되어 기기마다 판정 반응이
+   달라졌습니다. 경과 시간으로 세므로 어떤 기기에서도 동일하게 동작합니다. */
+function debounced(key, rawPass, dt){
+  const spKey=key+'_sp', sfKey=key+'_sf', stKey=key+'_stable';
+  /* 이 변수 이름은 'step'이면 안 됩니다. 전역 step(현재 화면 상태)을 가려버려서,
+     이 안에서 화면 상태를 보려는 코드가 나중에 추가되면 숫자를 읽게 됩니다. */
+  const dtStep=clamp(dt||0, 0, 0.25);
+  if(rawPass){ roundState[spKey]=(roundState[spKey]||0)+dtStep; roundState[sfKey]=0; }
+  else { roundState[sfKey]=(roundState[sfKey]||0)+dtStep; roundState[spKey]=0; }
+  if(roundState[stKey]===undefined) roundState[stKey]=rawPass;
+  if(roundState[spKey]>=DEBOUNCE_SECONDS) roundState[stKey]=true;
+  if(roundState[sfKey]>=DEBOUNCE_SECONDS) roundState[stKey]=false;
+  return roundState[stKey];
+}
+/* 측정할 수 없는 동안에는 막대를 마지막 값에 둔 채 AI의 한마디만 바꿉니다. */
+function holdSay(text){
+  if(!liveGauge) return;
+  const base = liveState || waitingState(currentMission, text);
+  liveState = {vals:base.vals, ok:base.ok, say:{text:text, tone:'flat'}};
+}
+/* 결과 화면용 기록. 값은 측정 간격(초)으로 가중 평균합니다 — 간격이 들쭉날쭉해도
+   '시간 기준' 평균이 되도록. */
+function accAdd(acc, vals, d){
+  for(const k in vals) acc.sum[k]=(acc.sum[k]||0)+vals[k]*d;
+  acc.t+=d;
+}
+function accAvg(acc){
+  const v={}; for(const k in acc.sum) v[k]=Math.round(acc.sum[k]/acc.t); return v;
+}
+function statsWindow(m, vals, dt){
+  const d=clamp(dt||0,0,0.25); if(!(d>0)) return;
+  const rs=roundStats;
+  const w = rs.win || (rs.win={t:0,sum:{}});
+  accAdd(w, vals, d);
+  if(w.t<WIN_SEC) return;
+  rs.win=null;
+  const avg=accAvg(w), ev=evalVals(m, avg), cls=stateClass(m, avg, ev);
+  if(cls==='pass') rs.sawPassWin=true;
+  if(!rs.active && movedFromNeutral(m, avg)) rs.active=true;
+  const bk = rs.active ? rs : rs.pre;
+  bk.clsTime[cls]=(bk.clsTime[cls]||0)+w.t;
+  if(!bk.bestBy[cls] || ev.d<bk.bestBy[cls].d) bk.bestBy[cls]={d:ev.d, vals:avg};
+  if(!rs.best || ev.d<rs.best.d) rs.best={d:ev.d, vals:avg};
 }
 
 function evaluateChallenge(metrics, faceSeen, quality, dt){
@@ -1669,78 +1960,31 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
   $('timeLeftNum').textContent=Math.ceil(timeLeft);
   $('ringProgress').setAttribute('stroke-dashoffset', 276.5*(1-timeLeft/TL));
 
-  const measurable = faceSeen && (now-lastFaceTime<=0.4) && quality && quality.ok;
-  let allPass=true, firstFailKey=null, firstDepFailKey=null, passCount=0, frameVals=null, frameMinMargin=Infinity;
+  const m=currentMission;
+  const faceOk = faceSeen && (now-lastFaceTime<=0.4);
+  const measurable = faceOk && quality && quality.ok;
+  let allPass=false, rawAll=false, vals=null;
 
-  if(!faceSeen || now-lastFaceTime>0.4){
-    allPass=false;
+  if(!faceOk){
     setFeedback('bad','얼굴이 화면에 보이지 않아요. 카메라 중앙에 얼굴을 맞춰주세요.');
+    holdSay('AI: 얼굴이 안 보여요');
   } else if(!quality.ok){
     // 측정할 수 없는 자세입니다. 조건이 깨진 것과는 다르므로 유지 시간을 깎지 않고 멈춥니다.
     setFeedback('bad', quality.why);
+    holdSay('AI: 얼굴이 잘 안 보여요');
   } else {
-    frameVals={};
-    currentMission.metrics.forEach(mt=>{
-      const val=mt.get(metrics);
-      frameVals[mt.key]=val;
-
-      const els=metricEls[mt.key];
-      const displayVal = mt.isPercent ? Math.round(val*100)+'%' : val.toFixed(mt.reference?3:2);
-      /* 같은 글자를 다시 쓰면 브라우저가 매번 스타일을 재계산합니다. 바뀔 때만 씁니다. */
-      if(els && els.val && els.lastVal!==displayVal){ els.val.textContent=displayVal; els.lastVal=displayVal; }
-
-      if(mt.reference) return;
-
-      // 프레임 단위 판정 후, 순간적인 검출 노이즈로 판정이 튀는 것을 막기 위해 디바운스합니다.
-      /* 판정이 순간 노이즈로 튀지 않도록 디바운스합니다. 예전에는 '연속 N프레임'으로 셌는데,
-         그러면 30fps 기기에서는 66ms, 15fps 기기에서는 133ms가 되어 기기마다 판정 반응이
-         달라졌습니다. 이제 경과 시간으로 세므로 어떤 기기에서도 동일하게 동작합니다. */
-      const th=effThreshold(mt);
-      const rawPass = mt.cmp==='>=' ? val>=th : val<=th;
-      const spKey=mt.key+'_sp', sfKey=mt.key+'_sf', stKey=mt.key+'_stable';
-      /* 이 변수 이름은 'step'이면 안 됩니다. 전역 step(현재 화면 상태)을 가려버려서,
-         이 블록 안에서 화면 상태를 보려는 코드가 나중에 추가되면 숫자를 읽게 됩니다. */
-      const dtStep=clamp(dt||0, 0, 0.25);
-      if(rawPass){ roundState[spKey]=(roundState[spKey]||0)+dtStep; roundState[sfKey]=0; }
-      else { roundState[sfKey]=(roundState[sfKey]||0)+dtStep; roundState[spKey]=0; }
-      if(roundState[stKey]===undefined) roundState[stKey]=rawPass;
-      if(roundState[spKey]>=DEBOUNCE_SECONDS) roundState[stKey]=true;
-      if(roundState[sfKey]>=DEBOUNCE_SECONDS) roundState[stKey]=false;
-      const pass = roundState[stKey];
-      const badgeText = pass?'통과':'걸림';
-      if(els && els.badge && els.lastBadge!==badgeText){
-        els.badge.textContent=badgeText;
-        els.badge.className='pass-badge '+(pass?'ok':'bad');
-        els.lastBadge=badgeText;
-      }
-      /* 막대는 목표값만 적어 둡니다. 실제로 그리는 것은 화면 루프입니다. */
-      /* 모든 막대에서 기준선이 같은 자리(60%)에 오도록 맞춥니다.
-         예전에는 지표마다 막대 눈금이 달라서(기준이 어떤 막대는 62.5%, 어떤 막대는 50%
-         지점) 막대를 봐도 지금 기준을 넘었는지 알 수 없었습니다. 판정이 들쭉날쭉해
-         보이던 이유 중 하나입니다. 이제 어느 막대든 60% 선이 기준이고, 넘어야 하는
-         조건이든 넘지 말아야 하는 조건이든 같은 자리입니다. 색으로 어느 쪽이 좋은지
-         구분합니다(초록=통과, 빨강=걸림). */
-      gaugeTarget[mt.key] = clamp(val*GAUGE_MARK/th, 0, 1);
-      gaugeColor[mt.key] = pass ? 'var(--good)' : 'var(--bad)';
-      /* 이 프레임이 기준을 얼마나 여유 있게 넘겼는지(음수면 못 넘김). 아래에서 '가장 잘한
-         순간'을 고르는 데 씁니다. 기준 대비 비율이라 지표끼리 비교할 수 있습니다. */
-      const margin = (mt.cmp==='>=' ? (val-th) : (th-val)) / Math.max(th,1e-6);
-      if(margin<frameMinMargin) frameMinMargin=margin;
-      if(pass) passCount++;
-      else {
-        allPass=false;
-        /* 관계 조건(엇갈림)은 다른 조건이 다 될 때까지 미뤄 둡니다. */
-        if(mt.dependent){ if(!firstDepFailKey) firstDepFailKey=mt.key; }
-        else if(!firstFailKey) firstFailKey=mt.key;
-      }
-    });
-
-    if(allPass){
-      setFeedback('ok','좋아요! 지금 상태를 유지하세요.');
-    } else {
-      const mt=currentMission.metrics.find(m=>m.key===(firstFailKey||firstDepFailKey));
-      setFeedback('bad', mt ? failText(mt) : '조건을 맞춰보세요.');
-    }
+    /* 화면 숫자, 조건 칩, 유지 게이지, AI의 한마디가 모두 같은 정수 % 값과 같은 판정
+       함수(evalVals)에서 나옵니다. 그래서 서로 다른 말을 하지 않습니다. */
+    vals=readVals(m, metrics);
+    const raw=evalVals(m, vals);
+    rawAll=raw.all;
+    const ok={};
+    condKeys(m).forEach(k=>{ ok[k]=debounced(k, raw.ok[k], dt); });
+    allPass=condKeys(m).every(k=>ok[k]);
+    /* 막대는 목표값만 적어 둡니다. 실제로 그리는 것은 화면 루프(applyGauges)입니다. */
+    liveState={vals, ok, say:aiSay(m, vals, ok)};
+    const fb=feedbackFor(m, vals, ok);
+    setFeedback(fb.kind, fb.text);
   }
 
   /* 유지 시간은 프레임 간격을 직접 더해서 관리합니다. 그래야 측정 불가 구간에서
@@ -1748,66 +1992,38 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
   if(measurable){
     if(allPass) holdAccum += clamp(dt||0, 0, 0.25);
     else holdAccum = 0;
-  } else if(!faceSeen || now-lastFaceTime>0.4){
+  } else if(!faceOk){
     holdAccum = 0;   // 얼굴이 사라진 건 유지 실패로 봅니다
   }
+  const rs=roundStats;
+  if(holdAccum>rs.maxHold) rs.maxHold=holdAccum;
+  /* 성공했을 때 결과표에 보여줄 '성공한 순간'. 지금 이어지는 유지 구간에서 조건을 실제로
+     만족한 프레임만 모읍니다. 만족한 값들의 평균은 반드시 조건을 만족하므로(반올림해도
+     마찬가지), 성공 화면에 '걸림'이 찍히는 일이 생기지 않습니다. */
+  if(holdAccum===0) rs.streak=null;
+  else if(measurable && rawAll && vals){
+    const d=clamp(dt||0,0,0.25);
+    if(d>0) accAdd(rs.streak || (rs.streak={t:0,sum:{}}), vals, d);
+  }
+
   const HT=holdSeconds();
-  const hold=holdAccum;
-  holdTarget = clamp(hold/HT,0,1);
+  holdTarget = clamp(holdAccum/HT,0,1);
   applyGauges(now);
-  const holdText = hold.toFixed(1)+' / '+HT.toFixed(1)+'s';
+  const holdText = holdAccum.toFixed(1)+' / '+HT.toFixed(1)+'s';
   const hl=$('holdLabel');
   if(hl && hl.textContent!==holdText) hl.textContent=holdText;
 
-  /* 결과표에는 지표별 '내 최고값'을 보여줍니다. 값과 판정이 어긋나지 않는 것이 핵심인데,
-     판정을 그 자리에서 같은 값으로 계산하므로 구조적으로 어긋날 수 없습니다.
+  /* 실패했을 때 결과표에 보여줄 '가장 가까웠던 순간'은 0.3초 평균 단위로 고릅니다. 한 순간의
+     값들이라 서로 다른 순간이 섞이지 않습니다(예전에는 지표별 최고값을 따로 모아서, 실제로는
+     동시에 만족한 적이 없는데도 전부 통과처럼 보였습니다).
+     시작 직후(필터가 무표정에서 출발해 올라오는 구간)와, 입만 웃기에서 깜빡이는 프레임(눈
+     값이 실측이 아니라 직전 값으로 얼어 있음)은 뺍니다. */
+  if(!measurable) rs.win=null;
+  else if((now-timeLimitStart)>=SETTLE_SECONDS && !(m.kind==='zones' && metrics && metrics.eyeFrozen))
+    statsWindow(m, vals, dt);
 
-     원래 버그는 값은 지표별 최고치에서, 판정은 화면의 디바운스된 상태에서 따로 가져온
-     것이었습니다. 그래서 "0.23 · 기준 0.5 이상 · 통과"처럼 말이 안 되는 줄이 찍혔습니다.
-     한 순간(프레임)만 골라 보여주는 방법도 써봤지만, 표정이 바뀌는 도중의 프레임이 뽑혀
-     내내 눈을 찡그렸는데 '눈 가늘어짐 0.26 · 통과'가 나오는 등 더 헷갈렸습니다.
-
-     "조건을 다 만들었지만 유지만 못 했다"는 안내는 최고값으로 판단하면 안 됩니다.
-     서로 다른 순간의 최고값이 모이면 실제로는 동시에 만족한 적이 없는데도 전부 통과로
-     보이기 때문입니다. 그래서 '한 프레임에서 전부 통과한 적이 있는지'를 따로 기록합니다. */
-  if(frameVals && (now-timeLimitStart)>=SETTLE_SECONDS){
-    const judgesEye = currentMission.metrics.some(m=>!m.reference && m.key==='eyeSquint');
-    /* 깜빡이는 동안 눈 수치는 실측이 아니라 직전 값으로 얼어 있습니다. 그 프레임의 눈 값은
-       최고값 집계와 '전부 통과' 기록에서 모두 제외합니다. */
-    const eyeFrozen = judgesEye && metrics && metrics.eyeFrozen;
-    let framePassAll = true;
-    currentMission.metrics.filter(m=>!m.reference).forEach(mt=>{
-      const val=frameVals[mt.key];
-      if(typeof val!=='number' || !isFinite(val)) { framePassAll=false; return; }
-      if(mt.key==='eyeSquint' && eyeFrozen){ framePassAll=false; return; }
-      const prev=bestPerMetric[mt.key];
-      if(prev===undefined) bestPerMetric[mt.key]=val;
-      else bestPerMetric[mt.key] = (mt.cmp==='>=') ? Math.max(prev,val) : Math.min(prev,val);
-      const th=effThreshold(mt);
-      if(!(mt.cmp==='>=' ? val>=th : val<=th)) framePassAll=false;
-    });
-    if(framePassAll) sawAllPassFrame=true;
-  }
-
-  if(hold>=HT){ finishChallenge(true); return; }
+  if(holdAccum>=HT){ finishChallenge(true); return; }
   if(timeLeft<=0){ finishChallenge(false); return; }
-}
-/* 같은 지표가 미션에 따라 "넘겨야 하는 조건"이기도, "넘지 말아야 하는 조건"이기도 합니다.
-   예를 들어 입꼬리는 '입만 웃기'에서는 올려야 하고 '슬픈 복어'에서는 올리면 안 됩니다.
-   그래서 지표 이름만으로 안내하면 정반대로 알려주게 됩니다. 방향까지 보고 고릅니다. */
-function failText(mt){
-  const texts={
-    'mouthSmile>=':'입꼬리를 더 확실히 올려 보세요.',
-    'mouthSmile<=':'입꼬리를 옆으로 당기지 마세요. 입은 꽉 닫은 채로 있어야 합니다.',
-    'eyeSquint<=':'눈이 가늘어졌어요. 눈을 평소대로 크게 뜨고 있으세요.',
-    'browDrop<=':'눈썹이 눈 쪽으로 내려왔어요. 눈썹을 그대로 두세요.',
-    'sadBrow>=':'눈썹이 아직 평온해요. 미간을 찡그리거나 눈썹 안쪽을 올려보세요.',
-    'cheekPuff>=':'볼을 더 빵빵하게 부풀려 보세요. 입을 꽉 닫고 공기를 물면 됩니다.',
-    'browAsym>=':'한쪽 눈썹만 더 확실히 올리세요. 두 눈썹이 같이 올라가면 높이차가 안 생깁니다.',
-    'mouthAsym>=':'한쪽 입꼬리만 올리세요. 반대쪽은 힘을 완전히 빼야 합니다.',
-    'crossAsym>=':'눈썹과 입꼬리가 같은 쪽입니다. 둘 중 하나를 반대쪽으로 바꾸세요.'
-  };
-  return texts[mt.key+(mt.cmp||'')] || texts[mt.key] || '조건을 맞춰보세요.';
 }
 
 function challengeLoop(){
@@ -1825,46 +2041,104 @@ function finishChallenge(ok){
   if(challengeDone) return;
   challengeDone=true;
   cancelAnimationFrame(challengeAnimId);
-  lastResultMission=currentMission;
-  const rows=$('resultRows'); rows.innerHTML='';
-  /* 못 넘긴 지표가 여러 개면, 목록 순서상 첫 번째가 아니라 '가장 많이 모자란' 지표를
-     짚어줍니다. 고칠 것이 하나뿐일 때 제일 도움이 되는 조언이기 때문입니다. */
-  let failKey=null, worstMargin=Infinity, depFailKey=null, depWorst=Infinity;
-  currentMission.metrics.filter(m=>!m.reference).forEach(mt=>{
-    const val=(typeof bestPerMetric[mt.key]==='number')?bestPerMetric[mt.key]:0;
-    const th=effThreshold(mt);
-    /* 판정을 바로 이 값으로 계산합니다. 값과 판정이 서로 다른 출처에서 오지 않으므로
-       둘이 어긋날 수 없습니다. */
-    const pass = mt.cmp==='>=' ? val>=th : val<=th;
-    if(!pass){
-      const margin = (mt.cmp==='>=' ? (val-th) : (th-val)) / Math.max(th,1e-6);
-      if(mt.dependent){
-        if(margin<depWorst){ depWorst=margin; depFailKey=mt.key; }
-      } else if(margin<worstMargin){ worstMargin=margin; failKey=mt.key; }
-    }
-    const valStr = mt.isPercent ? Math.round(val*100)+'%' : val.toFixed(2);
-    const thStr = mt.binary ? (mt.binaryText||'만족') : (mt.cmp==='>='?'≥ ':'≤ ')+fmtThreshold(mt);
-    rows.innerHTML += '<tr><td>'+mt.label.split(' · ')[0]+'</td><td><b>'+valStr+'</b></td><td>'+thStr+'</td>'+
-      '<td style="color:'+(pass?'var(--good)':'var(--bad)')+';font-weight:800;">'+(pass?'통과':'걸림')+'</td></tr>';
-  });
-  /* 독립 조건이 모자라면 그쪽을, 전부 만족했는데 관계 조건만 틀렸으면 그쪽을 짚습니다. */
-  if(!failKey && depFailKey) failKey=depFailKey;
-  lastResultFailedMetric = failKey ? currentMission.metrics.find(m=>m.key===failKey) : null;
+  const m=currentMission, rs=roundStats, H=holdSeconds();
+  lastResultMission=m;
 
+  /* 결과표에 보여줄 한 순간과 실패 이유를 고릅니다. 시안의 '다시 도전' 세 가지와 같습니다.
+       입만 웃기   : 눈까지 같이 웃음 / 입꼬리가 덜 올라감 / 2초 전에 무너짐
+       줄다리기    : 한 감정이 이김 / 둘 다 낮은 무표정 / 2초 전에 구간 밖 */
+  let vals=null, reason='ok';
+  if(ok){
+    vals = (rs.streak && rs.streak.t>0) ? accAvg(rs.streak) : (rs.best ? rs.best.vals : null);
+  } else if(!rs.best){
+    reason='noface';
+  } else if(rs.maxHold>=COLLAPSE_MIN_HOLD || rs.sawPassWin){
+    /* 한 번이라도 조건 안에 들어갔다면 고칠 것은 표정이 아니라 '버티기'입니다. */
+    reason='collapse';
+    vals=(rs.bestBy.pass || rs.best).vals;
+  } else {
+    /* 가장 오래 머문 상태가 실패 이유이고, 결과표에는 그 상태 안에서 가장 가까웠던 순간을
+       보여줍니다. 그래야 이유 · 숫자 · 조언이 같은 이야기를 합니다. */
+    const bk = rs.active ? rs : rs.pre;
+    let top=null;
+    for(const c in bk.clsTime){ if(c!=='pass' && (!top || bk.clsTime[c]>bk.clsTime[top])) top=c; }
+    reason = top || 'noface';
+    vals = top ? bk.bestBy[top].vals : null;
+  }
+  const ev = vals ? evalVals(m, vals) : null;
+
+  /* 결과표. 판정은 표에 찍힌 바로 그 숫자로 다시 계산하므로 숫자와 판정이 어긋날 수 없습니다. */
+  $('resultColHead').textContent = ok ? '성공한 순간' : '가장 가까웠던 순간';
+  const row=(name, val, std, pass)=>'<tr><td>'+name+'</td><td><b>'+val+'</b></td><td>'+std+'</td>'+
+    '<td style="color:'+(pass===null?'var(--muted)':(pass?'var(--good)':'var(--bad)'))+';font-weight:800;">'+
+    (pass===null?'-':(pass?'통과':'걸림'))+'</td></tr>';
+  let rowsHtml='';
+  if(m.kind==='zones'){
+    m.bars.forEach(b=>{ rowsHtml+=row(b.name, vals?vals[b.key]+'%':'-', b.th+'% '+(b.cmp==='>='?'이상':'이하'), ev?ev.ok[b.key]:null); });
+  } else {
+    rowsHtml+=row(m.left.name,  vals?vals.L+'%':'-', TUG_MIN+'% 이상', ev?ev.ok.L:null);
+    rowsHtml+=row(m.right.name, vals?vals.R+'%':'-', TUG_MIN+'% 이상', ev?ev.ok.R:null);
+    rowsHtml+=row('차이', vals?ev.gap+'%p':'-', TUG_GAP+'%p 이내', ev?ev.ok.gap:null);
+  }
+  $('resultRows').innerHTML=rowsHtml;
+
+  /* AI의 한마디 · 설명 · 다음엔 이렇게 */
+  const held = rs.maxHold>=0.1 ? ' 가장 오래 버틴 시간은 '+rs.maxHold.toFixed(1)+'초예요.' : '';
+  let say, desc, tip;
+  if(reason==='noface'){
+    say={text:'AI: 얼굴을 못 찾았어요', tone:'flat'};
+    desc='얼굴을 제대로 읽지 못했어요. 얼굴이 화면 네모 안에 보이게, 정면을 보고 서 주세요.';
+    tip='얼굴 전체가 화면 네모 안에 들어오게 서고, 방이 어두우면 조금 더 밝은 곳에서 해 보세요.';
+  } else if(m.kind==='zones'){
+    if(ok){
+      say={text:m.say.pass, tone:''};
+      desc='<b>'+m.label+'</b> 성공! 입은 활짝 웃었지만 눈은 무표정이라, AI가 '+H+'초 동안 기쁨으로 읽지 못했어요.';
+    } else if(reason==='collapse'){
+      say={text:'AI: 잠깐 헷갈렸는데… 이제 알겠어요', tone:'sure'};
+      desc='두 막대를 점선 칸에 넣었지만 <b>'+H+'초 전에 무너졌어요.</b>'+held;
+    } else if(reason==='eyes'){
+      say={text:m.say.eyes, tone:'sure'};
+      desc='<b>눈까지 같이 웃었어요.</b> AI는 눈 주변을 보고 진짜 웃음, 곧 기쁨으로 알아챘어요.';
+    } else {
+      say={text:m.say.mouth, tone:'flat'};
+      desc='<b>입꼬리가 덜 올라갔어요.</b> 입 웃음이 50%를 넘지 못해, AI가 웃는 얼굴로 보지 않았어요.';
+    }
+    tip = ok ? '완벽했어요! 다른 미션에도 도전해 보세요.' : fillHold(m.tips[reason]);
+  } else {
+    const Ln=m.left.name, Rn=m.right.name;
+    const pair = vals ? Ln+' '+vals.L+'% · '+Rn+' '+vals.R+'%' : '';
+    if(ok){
+      say={text:'AI: '+Ln+'...? '+Rn+'...? 모르겠어요', tone:''};
+      desc='<b>'+m.label+'</b> 성공! '+(pair?pair+'로 팽팽해서, ':'')+'AI가 '+H+'초 동안 어느 쪽인지 정하지 못했어요.';
+      tip='완벽했어요! 다른 미션에도 도전해 보세요.';
+    } else if(reason==='collapse'){
+      say={text:'AI: 잠깐 헷갈렸는데… 이제 알겠어요', tone:'sure'};
+      desc='표시를 헷갈림 구간에 넣었지만 <b>'+H+'초 전에 구간 밖</b>으로 나갔어요.'+held;
+      tip='표시가 분홍 칸에 들어간 순간, 그 표정 그대로 멈춰 보세요. '+H+'초면 됩니다.';
+    } else if(reason==='neutral'){
+      say={text:'AI: 무표정이네요', tone:'flat'};
+      desc='<b>둘 다 낮은 무표정</b>이었어요. AI가 '+Ln+'도 '+Rn+'도 30% 넘게 읽지 못했어요.';
+      tip=m.neutralFb.replace(/^AI가 무표정으로 봐요\. /,'')+' 두 감정이 모두 30%를 넘어야 해요.';
+    } else if(reason==='weak'){
+      const weak = !ev.ok.L ? m.left : m.right;
+      say=aiSay(m, vals, ev.ok);
+      desc='<b>'+weak.name+'이 30%에 못 미쳤어요.</b> 가장 가까웠던 순간은 '+pair+'로 비슷했지만, 약해서 AI가 헷갈릴 정도는 아니었어요.';
+      tip=weak.more+'. 다른 쪽 표정도 함께 조금씩 더 세게 만들어 보세요.';
+    } else {
+      const leftWins = reason==='wonL', win = leftWins?m.left:m.right, lose = leftWins?m.right:m.left;
+      const loseVal = leftWins ? vals.R : vals.L;
+      say=aiSay(m, vals, ev.ok);
+      desc='<b>'+win.name+'이 이겼어요.</b> 가장 가까웠던 순간도 '+pair+'라, AI가 '+win.name+'으로 읽었어요.';
+      tip=(loseVal>=TUG_MIN ? win.less : lose.more)+'. 두 감정의 세기가 비슷해지면 표시가 분홍 칸에 들어가요.';
+    }
+  }
   $('resultTitle').textContent = ok ? 'AI를 속였어요!' : '들켰어요!';
   $('resultTitle').className = 'result-title ' + (ok?'ok':'bad');
-  if(ok){
-    $('resultDesc').innerHTML = '<b>'+currentMission.label+'</b> 미션을 '+holdSeconds().toFixed(1)+'초 동안 완벽하게 유지했어요. AI가 표정을 헷갈려 했습니다.';
-    $('tipText').textContent = '완벽했어요! 다른 미션에도 도전해보세요.';
-  } else if(lastResultFailedMetric && !sawAllPassFrame){
-    const label = lastResultFailedMetric.label.split(' · ')[0];
-    $('resultDesc').innerHTML = '<b>'+label+'</b> 조건을 끝내 맞추지 못했어요. AI가 표정을 알아챘습니다.';
-    $('tipText').textContent = lastResultFailedMetric.tip;
-  } else {
-    $('resultDesc').innerHTML = '조건은 만들었지만 <b>'+holdSeconds().toFixed(1)+'초 연속 유지</b>에서 놓쳤어요. 조금만 더 버티면 됩니다.';
-    $('tipText').textContent = '조건을 만들었을 때 그 상태 그대로 멈춰 보세요. 움직이면 유지 게이지가 처음부터 다시 차오릅니다.';
-  }
-  $('explainText').textContent = currentMission.explain;
+  $('resultSay').textContent = say.text;
+  $('resultSay').className = 'ai-say'+(say.tone?' '+say.tone:'');
+  $('resultDesc').innerHTML = desc;
+  $('tipText').textContent = tip;
+  $('explainText').textContent = m.explain;
 
   setStep('result');
   startAutoReturn(AUTO_RETURN);
