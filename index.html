@@ -153,11 +153,14 @@ section.step.active{display:block;}
 .tug-area{position:absolute;left:5px;right:5px;top:0;bottom:0;}
 .tug-track{position:absolute;left:0;right:0;top:8px;height:14px;border-radius:8px;
   background:linear-gradient(90deg,var(--tl) 0 50%,var(--tr) 50% 100%);}
-.tug-zone{position:absolute;left:45%;width:10%;top:4px;bottom:4px;border-radius:7px;background:var(--zone-fill);border:2px solid var(--zone-edge);transition:box-shadow .15s;}
-#liveGauge .tug-zone.on{box-shadow:0 0 0 3px var(--pink-soft),0 0 12px var(--zone-edge);}
+.tug-zone{position:absolute;left:45%;width:10%;top:4px;bottom:4px;border-radius:7px;background:var(--zone-fill);border:2px solid var(--zone-edge);transition:opacity .15s,box-shadow .15s;}
+/* 도전 화면에서는 조건을 다 채웠을 때만 분홍 칸이 밝게 켜집니다(미리보기는 성공 예시라 항상 켜짐). */
+#liveGauge .tug-zone{opacity:.35;}
+#liveGauge .tug-zone.on{opacity:1;box-shadow:0 0 0 3px var(--pink-soft),0 0 12px var(--zone-edge);}
 .tug-pos{position:absolute;inset:0;transform:translateX(50%);will-change:transform;}
 .tug-marker{position:absolute;left:-3px;top:1px;bottom:1px;width:6px;border-radius:3px;background:var(--marker);transition:opacity .15s;}
 .tug-marker.weak{opacity:.3;}
+.tug-marker.hide{opacity:0;}
 .ai-say{display:inline-block;font-size:12.5px;font-weight:800;padding:5px 12px;border-radius:20px;background:var(--say-bg);color:var(--say-ink);}
 .ai-say.sure{background:var(--say-sure-bg);color:var(--say-sure-ink);}
 .ai-say.flat{background:var(--chip-neutral);color:var(--muted);}
@@ -172,6 +175,8 @@ section.step.active{display:block;}
 }
 
 /* --- challenge --- */
+.challenge-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.back-btn{flex:0 0 auto;padding:9px 14px;font-size:13px;}
 .challenge-title{font-size:15px;color:var(--muted);margin-bottom:2px;}
 .challenge-mission{font-size:24px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:10px;}
 .challenge-desc{font-size:14.5px;color:var(--text);margin:0 0 16px;line-height:1.5;}
@@ -217,8 +222,9 @@ section.step.active{display:block;}
    잠깐 막혀 있어도 게이지는 계속 부드럽게 흐릅니다. */
 .hold-fill{height:100%;background:linear-gradient(90deg,var(--pink),#ff8fc4);width:100%;
   transform:scaleX(0);transform-origin:left center;will-change:transform;}
-/* 도전 화면의 판정 막대 칸. 선택 화면의 미리보기(.gbox)와 같은 부품을 씁니다. */
-.side .gbox{margin-top:16px;border:1px solid var(--border);}
+/* 도전 화면의 판정 막대 칸. 선택 화면의 미리보기(.gbox)와 같은 부품을 씁니다.
+   contain:layout — 매 측정마다 바뀌는 숫자·문구가 이 칸 바깥의 배치를 다시 계산시키지 않게 합니다. */
+.side .gbox{margin-top:16px;border:1px solid var(--border);contain:layout;}
 .feedback-box{margin-top:14px;border:1px solid var(--bad);background:rgba(255,92,92,0.08);color:var(--text);border-radius:12px;padding:12px 14px;font-size:13px;}
 .feedback-box.ok{border-color:var(--good);background:rgba(61,220,132,0.08);}
 
@@ -283,8 +289,13 @@ table.result-table td b{font-weight:800;}
   </section>
 
   <section class="step" id="step-challenge">
-    <div class="challenge-title">미션</div>
-    <div class="challenge-mission" id="challengeMissionTitle">-</div>
+    <div class="challenge-top">
+      <div>
+        <div class="challenge-title">미션</div>
+        <div class="challenge-mission" id="challengeMissionTitle">-</div>
+      </div>
+      <button class="secondary-btn back-btn" id="backBtn" aria-label="미션 선택으로 돌아가기">← 미션 선택</button>
+    </div>
     <p class="challenge-desc" id="challengeDesc"></p>
     <div class="challenge-grid">
       <div class="facebox">
@@ -363,7 +374,7 @@ table.result-table td b{font-weight:800;}
         <div class="tip-card"><h4>AI는 이렇게 판단해요</h4><p id="explainText"></p></div>
         <div class="result-actions">
           <button class="primary-btn" id="retryBtn">다시 도전</button>
-          <button class="secondary-btn" id="restartBtn">처음으로</button>
+          <button class="secondary-btn" id="restartBtn">다른 미션 하기</button>
         </div>
         <div class="auto-note" id="autoNote">10초 후 자동으로 처음 화면으로 돌아갑니다</div>
       </div>
@@ -788,7 +799,10 @@ function finishCalibration(){
    깜빡임은 양쪽 눈이 동시에 거의 완전히 닫히고 짧게 끝난다는 점으로 골라내고,
    그 동안에는 직전 값을 그대로 유지합니다. 0.4초를 넘으면 의도적으로 감은 것이므로
    더는 보호하지 않고 실제 값을 내보냅니다. */
-const BLINK_RATIO=0.55, BLINK_MAX_SEC=0.40;
+/* 깜빡임이 끝나는 기준은 시작 기준보다 높게(평소의 85%까지 다시 떠야) 잡습니다. 사람은
+   눈을 감는 것보다 뜨는 것이 느려서(약 0.2초), 시작 기준만 쓰면 반쯤 뜬 프레임들이 '실제
+   값'으로 새어 들어가 유지가 끊겼습니다. */
+const BLINK_RATIO=0.55, BLINK_RECOVER=0.85, BLINK_MAX_SEC=0.40;
 /* sawOpen: 눈이 '떠 있는 상태'를 한 번이라도 본 적이 있는지.
    깜빡임은 떴다가 감는 순간적인 변화입니다. 이 전제를 확인하지 않으면, 처음부터 눈을
    가늘게 뜨고 있는 사람의 실눈이 깜빡임으로 오인되어 가려집니다. */
@@ -801,12 +815,16 @@ function resetBlink(){ blinkActive=false; blinkSince=0; blinkFrozen=0; lastEyeCl
    않아 그 한 프레임이 필터로 새어 들어갔습니다. 호출 순서에 기대지 않도록 분리했습니다.
    반환값은 "이 프레임은 깜빡임이라 눈 신호를 얼려야 한다"는 뜻입니다. */
 function updateBlink(lidRatio, now){
-  if(isBlinking(lidRatio)){
+  const closed=isBlinking(lidRatio);
+  /* 깜빡임이 끝나는 때: 충분히 다시 떴거나, 0.4초가 지났는데 눈이 반 넘게 떠 있을 때
+     (그 사람의 평소 실눈 정도로 돌아온 것입니다). */
+  if(blinkActive && (lidRatio>=BLINK_RECOVER || (!closed && (now-blinkSince)>=BLINK_MAX_SEC))) blinkActive=false;
+  if(closed){
     if(!sawOpen) return false;           // 떠 있던 적이 없으면 깜빡임이 아니라 실눈입니다
     if(!blinkActive){ blinkActive=true; blinkSince=now; blinkFrozen=lastEyeClosure; }
     return (now-blinkSince) < BLINK_MAX_SEC;   // 0.4초를 넘기면 찡그림으로 봅니다
   }
-  blinkActive=false;
+  if(blinkActive) return (now-blinkSince) < BLINK_MAX_SEC;   // 다시 뜨는 중
   sawOpen=true;
   return false;
 }
@@ -1154,6 +1172,8 @@ function setStep(s){
      중간에 터져서 플레이어를 선택 화면으로 끌어냈습니다. 결과도 안 나오고 타이머만
      멈춘 채 게임이 사라지는, 가장 당황스러운 버그였습니다. */
   if(s!=='result'){ clearInterval(autoReturnTimer); autoReturnTimer=null; autoReturnActive=false; }
+  /* 카메라가 켜진 뒤(첫 화면이 아닌 동안)에는 뒤로 가기 키를 앱 안에서 받습니다. 아래 '뒤로 가기' 참고. */
+  if(s!=='idle') armBackGuard();
   /* 선택 화면에 올 때마다 버튼을 쓸 수 있는 상태로 되돌립니다.
      '준비됐어요'를 누르면 버튼이 잠기고, 3초 카운트다운이 끝나는 순간에만 풀렸습니다.
      그래서 그 3초 사이에 카메라가 한 번 빠지면(전시장에서 USB 웹캠이 흔히 그렇습니다)
@@ -1403,11 +1423,15 @@ $('camBtn').addEventListener('click', async ()=>{
     return;
   }
   try{
-    if(!(await ensureFaceMesh())) throw new Error('얼굴 인식 라이브러리를 어느 CDN에서도 불러오지 못했습니다.');
-    faceMesh=new FaceMesh({locateFile:(f)=>MP_BASE+f});
-    faceMesh.setOptions({maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.65, minTrackingConfidence:0.6});
-    faceMesh.onResults(onResults);
-    await faceMesh.initialize();
+    /* 뒤로 가기로 첫 화면에 갔다가 다시 켤 때는 이미 준비된 얼굴 인식 모델을 그대로 씁니다.
+       매번 새로 만들면 모델 파일을 다시 받고, 이전 모델의 메모리가 쌓여 점점 느려집니다. */
+    if(!faceMesh){
+      if(!(await ensureFaceMesh())) throw new Error('얼굴 인식 라이브러리를 어느 CDN에서도 불러오지 못했습니다.');
+      faceMesh=new FaceMesh({locateFile:(f)=>MP_BASE+f});
+      faceMesh.setOptions({maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.65, minTrackingConfidence:0.6});
+      faceMesh.onResults(onResults);
+      await faceMesh.initialize();
+    }
     startTick();
     goSelect();
   }catch(e){
@@ -1561,11 +1585,13 @@ function paintGauge(r, st, durMs, snap){
     putText(r, 'vR', r.vals.R, m.right.name+' '+v.R+'%');
     /* 표시 위치 = 가운데에서 (오른쪽 − 왼쪽)/2 만큼. 차이 10%p면 정확히 분홍 칸 끝(45·55%)입니다. */
     setGauge(r.pos, 0.5+(v.R-v.L)/200, durMs, snap, 'move');
-    /* 표시가 분홍 칸 안에 있어도 둘 중 하나라도 30% 미만이면 흐리게 그립니다. 약해서 생긴
-       '가운데'는 헷갈림이 아니라 그냥 무표정에 가깝기 때문입니다. 칸 밖(한쪽이 이기는 중)일
-       때는 AI가 확신하고 있으므로 진하게 그립니다. */
-    putClass(r, 'mk', r.marker, 'tug-marker'+((ok.gap && !(ok.L&&ok.R))?' weak':''));
-    putClass(r, 'zn', r.zone, 'tug-zone'+(ok.L&&ok.R&&ok.gap?' on':''));
+    /* 무표정이면(둘 다 30% 미만) 표시를 아예 숨깁니다. 두 값이 다 0에 가까우면 표시가 정확히
+       가운데 — 분홍 칸 안 — 에 서서, 아무것도 안 했는데 성공 직전처럼 보였기 때문입니다.
+       한쪽만 30%를 넘고 칸 안에 있으면 흐리게, 칸 밖(한쪽이 이기는 중)이면 진하게 그립니다.
+       분홍 칸은 조건을 다 채웠을 때만 밝게 켜집니다. */
+    const none=!ok.L && !ok.R, all=ok.L&&ok.R&&ok.gap;
+    putClass(r, 'mk', r.marker, 'tug-marker'+(none?' hide':((ok.gap && !all)?' weak':'')));
+    putClass(r, 'zn', r.zone, 'tug-zone'+(all?' on':''));
   }
   for(const k in r.conds) putClass(r, 'c'+k, r.conds[k], 'cond '+(ok[k]?'ok':'bad'));
   if(r.say && st.say){
@@ -1646,8 +1672,12 @@ function onResults(results){
     const mouthWidth=pushSmooth('mouthWidth',computeMouthWidthNorm(rot.get,S),dt);
     /* 눈썹 높이는 좌우를 따로 재서 비대칭 미션에 씁니다. 평균(browGap)은 두 값에서
        바로 만들어 쓰므로, 같은 신호를 두 번 필터에 넣지 않습니다. */
-    const browGapL=pushSmooth('browGapL',computeBrowGapL(rot.get,S),dt);
-    const browGapR=pushSmooth('browGapR',computeBrowGapR(rot.get,S),dt);
+    /* 눈썹 높이는 '눈썹 ↔ 윗눈꺼풀' 거리라서, 깜빡이는 동안에는 눈꺼풀이 내려와 눈썹이 확
+       올라간 것처럼 읽힙니다. 그러면 '울면서 화내기'의 화남(눈썹 내리기)이 깜빡일 때마다 0으로
+       떨어져 유지가 끊깁니다. 눈꺼풀과 똑같이, 깜빡이는 동안에는 직전 값을 유지합니다. */
+    const rawGapL=computeBrowGapL(rot.get,S), rawGapR=computeBrowGapR(rot.get,S);
+    const browGapL = holdLidFilter ? filterValue('browGapL', rawGapL) : pushSmooth('browGapL',rawGapL,dt);
+    const browGapR = holdLidFilter ? filterValue('browGapR', rawGapR) : pushSmooth('browGapR',rawGapR,dt);
     const browGap=(browGapL+browGapR)/2;
     const browKnit=pushSmooth('browKnit',computeBrowKnit(rot.get,S),dt);
     const browSlant=pushSmooth('browSlant',computeBrowSlant(rot.get,S),dt);
@@ -2067,11 +2097,14 @@ function finishChallenge(ok){
   }
   const ev = vals ? evalVals(m, vals) : null;
 
-  /* 결과표. 판정은 표에 찍힌 바로 그 숫자로 다시 계산하므로 숫자와 판정이 어긋날 수 없습니다. */
+  /* 결과표. 판정은 표에 찍힌 바로 그 숫자로 다시 계산하므로 숫자와 판정이 어긋날 수 없습니다.
+     항목별 표시는 '통과'가 아니라 '충족/미달'입니다. 실패했는데 '통과'가 찍히면 전체 결과와
+     모순돼 보이기 때문입니다. 실패 화면에서는 충족한 항목을 흐리게, 모자란 항목만 빨갛게
+     강조하고, 마지막 줄의 '유지 시간'으로 왜 들켰는지가 표에서도 바로 보이게 합니다. */
   $('resultColHead').textContent = ok ? '성공한 순간' : '가장 가까웠던 순간';
   const row=(name, val, std, pass)=>'<tr><td>'+name+'</td><td><b>'+val+'</b></td><td>'+std+'</td>'+
-    '<td style="color:'+(pass===null?'var(--muted)':(pass?'var(--good)':'var(--bad)'))+';font-weight:800;">'+
-    (pass===null?'-':(pass?'통과':'걸림'))+'</td></tr>';
+    '<td style="color:'+(pass===null?'var(--muted)':(pass?(ok?'var(--good)':'var(--muted)'):'var(--bad)'))+
+    ';font-weight:'+(pass===false||ok?'800':'600')+';">'+(pass===null?'-':(pass?'충족':'미달'))+'</td></tr>';
   let rowsHtml='';
   if(m.kind==='zones'){
     m.bars.forEach(b=>{ rowsHtml+=row(b.name, vals?vals[b.key]+'%':'-', b.th+'% '+(b.cmp==='>='?'이상':'이하'), ev?ev.ok[b.key]:null); });
@@ -2080,6 +2113,9 @@ function finishChallenge(ok){
     rowsHtml+=row(m.right.name, vals?vals.R+'%':'-', TUG_MIN+'% 이상', ev?ev.ok.R:null);
     rowsHtml+=row('차이', vals?ev.gap+'%p':'-', TUG_GAP+'%p 이내', ev?ev.ok.gap:null);
   }
+  /* 성공했다면 유지 시간을 다 채운 것이고, 실패했다면 가장 오래 버틴 시간은 반드시 그보다 짧습니다. */
+  const heldShown = ok ? H : Math.min(rs.maxHold, H-0.1);
+  rowsHtml+=row('유지 시간', heldShown.toFixed(1)+'초', H+'초', ok);
   $('resultRows').innerHTML=rowsHtml;
 
   /* AI의 한마디 · 설명 · 다음엔 이렇게 */
@@ -2181,10 +2217,67 @@ $('retryBtn').addEventListener('click', ()=>{
   renderCards();
   setStep('select');
 });
+/* 다른 미션 하기: 방금 한 미션이 아닌 다른 미션을 골라 둔 채 선택 화면으로 갑니다.
+   (선택 화면에서 원하는 카드를 눌러 바꿀 수도 있습니다.) */
 $('restartBtn').addEventListener('click', ()=>{
   clearInterval(autoReturnTimer); autoReturnActive=false;
-  goSelect();
+  currentMission = pickMission(lastResultMission && lastResultMission.id);
+  showCalibNote('');
+  renderCards();
+  setStep('select');
 });
+
+/* ── 뒤로 가기 ──────────────────────────────────────────────────────────────────
+   다른 미션도 해 볼 수 있게, 도전·결과 화면에서 언제든 미션 선택으로 돌아갑니다.
+   화면의 '← 미션 선택' 버튼, Esc 키, 휴대폰·브라우저의 뒤로 가기 키가 같은 일을 합니다.
+     도전 중 · 결과 화면   → 미션 선택(하던 미션이 골라진 채로)
+     준비 3초 카운트다운 중 → 카운트다운 취소
+     미션 선택 화면        → 첫 화면(카메라 끔). 거기서 한 번 더 누르면 원래대로 페이지를 떠납니다.
+   뒤로 가기 키는 원래 페이지를 떠나 버리므로, 카메라를 켠 뒤에는 방문 기록을 한 칸 쌓아
+   두고(armBackGuard) 그 키를 앱 안의 '뒤로'로 받습니다. */
+function backToSelect(){
+  if(step==='challenge'){ challengeDone=true; cancelAnimationFrame(challengeAnimId); }
+  if(step==='result' && lastResultMission) currentMission=lastResultMission;
+  clearInterval(autoReturnTimer); autoReturnActive=false;
+  showCalibNote('');
+  renderCards();
+  setStep('select');
+}
+function cancelReady(){
+  if(!readyTimer) return false;
+  clearInterval(readyTimer); readyTimer=null;
+  calibSamples=null;          // 기준 잡기를 멈춥니다. 이전 기준값은 그대로 남습니다.
+  showCalibNote('');
+  setStep('select');          // 버튼 상태는 setStep이 되돌립니다
+  return true;
+}
+/* 카메라는 끄지만 얼굴 인식 모델은 남겨 두었다가, '카메라 시작'을 다시 누르면 재사용합니다. */
+function goIdle(){
+  cancelReady();
+  calibSamples=null;
+  if(step==='challenge'){ challengeDone=true; cancelAnimationFrame(challengeAnimId); }
+  stopCamera();
+  $('camBtn').disabled=false; $('camBtn').textContent='카메라 시작';
+  $('camError').style.display='none';
+  setStep('idle');
+}
+let backGuard=false;
+function armBackGuard(){
+  if(backGuard) return;
+  try{ history.pushState({aiMission3:true}, ''); backGuard=true; }catch(e){}
+}
+window.addEventListener('popstate', ()=>{
+  backGuard=false;
+  if(step==='challenge' || step==='result') backToSelect();
+  else if(step==='select'){ if(!cancelReady()) goIdle(); }
+  /* 선택 화면으로 돌아왔다면 setStep이 기록을 다시 한 칸 쌓아 둡니다(첫 화면에서는 쌓지 않음). */
+});
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape' || e.isComposing) return;
+  if(step==='challenge' || step==='result'){ e.preventDefault(); backToSelect(); }
+  else if(step==='select' && readyTimer){ e.preventDefault(); cancelReady(); }
+});
+$('backBtn').addEventListener('click', backToSelect);
 
 /* 추론은 30fps로 제한합니다. 120Hz 화면에서 매 프레임 추론을 시도하면 배터리와 CPU만
    태우고 정확도는 나아지지 않습니다. 실제 처리 속도(fps)도 측정해 화면에 보여줍니다. */
