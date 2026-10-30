@@ -8,7 +8,7 @@
 :root{
   --bg:#0b0b10; --panel:#15151d; --panel2:#1c1c26; --border:#2a2a36;
   --text:#eef0f5; --muted:#8b8fa3; --pink:#ff4f9c; --pink-soft:rgba(255,79,156,0.14);
-  --good:#3ddc84; --bad:#ff5c5c; --warn:#ffd166;
+  --good:#3ddc84; --bad:#ff5c5c; --warn:#ffd166; --warn-ink:#ffd166;
   /* 미션 카드와 AI 판정 막대(시안 스타일) */
   --card:#15151d; --card-in:#1f1f2b; --track:#2c2c3a;
   --chip-neutral:#2a2a36; --chip-neutral-ink:#c9cbd6;
@@ -17,7 +17,7 @@
   --joy-tint:rgba(245,184,76,0.30); --joy-ink:#f5c46a;
   --sad-tint:rgba(110,160,255,0.30); --sad-ink:#8fb6ff;
   --anger-tint:rgba(255,100,84,0.30); --anger-ink:#ff8f80;
-  --fill-ok:#5fcf8a; --fill-bad:#ff7a7a;
+  --fill-ok:#5fcf8a; --fill-bad:#ff7a7a; --good-ink:#6fe0a0; --bad-ink:#ff8a8a;
   --zone-line:rgba(255,255,255,0.80);
   --zone-fill:rgba(255,79,156,0.50); --zone-edge:#ff4f9c; --zone-ink:#ff8cc0;
   --marker:#f4f4f8;
@@ -31,7 +31,7 @@
 @media (prefers-color-scheme:light){
   :root:not([data-theme="dark"]){ --bg:#f5f5f8; --panel:#ffffff; --panel2:#f0f0f5; --border:#e2e2ea; --text:#1a1a22; --muted:#6b6b7a;
     /* 밝은 배경에서는 원래 초록·빨강·노랑 글자가 거의 안 보여서 한 단계 진하게 씁니다. */
-    --good:#1f9d57; --bad:#d93a3a; --warn:#b7791f;
+    --good:#1f9d57; --bad:#d93a3a; --warn:#b7791f; --warn-ink:#8a5a12;
     --card:#ebebef; --card-in:#ffffff; --track:#e4e4e9;
     --chip-neutral:#ececef; --chip-neutral-ink:#3a3a44;
     --chip-pink:#f3a9cb; --chip-pink-ink:#4a0f2a;
@@ -39,7 +39,7 @@
     --joy-tint:#f6e2b6; --joy-ink:#9a5b0c;
     --sad-tint:#dce5fb; --sad-ink:#2f5fc4;
     --anger-tint:#f9d4cd; --anger-ink:#b8361f;
-    --fill-ok:#9fd3a8; --fill-bad:#f2a0a0;
+    --fill-ok:#349157; --fill-bad:#cf4f4f; --good-ink:#167a45; --bad-ink:#b42828;
     --zone-line:#1a1a22;
     --zone-fill:#ec9ac2; --zone-edge:#c24a84; --zone-ink:#b0306f;
     --marker:#16161c;
@@ -50,6 +50,9 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
+/* 터치 화면에서 버튼을 빠르게 두 번 누르면 화면이 확대돼 전시 화면이 틀어졌습니다. 두 번 눌러 확대만
+   막고, 두 손가락 확대·스크롤은 그대로 둡니다. */
+html{touch-action:manipulation;}
 body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
   /* 한글이 낱글자 단위로 끊겨 '헷갈 / 림'처럼 줄이 바뀌지 않게, 띄어쓰기에서만 줄을 바꿉니다. */
   word-break:keep-all;overflow-wrap:break-word;}
@@ -100,7 +103,7 @@ section.step.active{display:block;}
 .mc-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .mc-letter{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:var(--letter-bg);color:var(--letter-ink);font-weight:900;font-size:15px;flex:0 0 auto;vertical-align:middle;}
 .mc-head h3{margin:0;font-size:22px;font-weight:900;letter-spacing:-0.3px;}
-.mc-tag{display:none;background:var(--pink-soft);color:var(--pink);font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;}
+.mc-tag{display:none;background:var(--pink-soft);color:var(--zone-ink);font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;}
 .mcard.sel .mc-tag{display:inline-block;}
 .mc-desc{margin:7px 0 0;font-size:14.5px;line-height:1.55;color:var(--text);}
 .mc-desc b{font-weight:900;}
@@ -114,7 +117,13 @@ section.step.active{display:block;}
 .mc-box.retry{border-color:var(--retry-line);background:var(--retry-bg);}
 .mc-box.retry h5{color:var(--retry-ink);}
 .mc-box .ico{width:19px;height:19px;flex:0 0 auto;}
-.select-actions{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px;}
+.select-actions{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+/* 노트북 화면(1366×768에서 브라우저 창 높이 ~650px)에서는 펼쳐진 미션 카드 때문에 '준비됐어요' 버튼이
+   화면 밖으로 밀려났습니다. 버튼 줄을 화면 아래에 붙여 두어 스크롤하지 않아도 항상 보이게 합니다.
+   준비 실패 안내(calibNote)도 버튼 바로 위에 같이 붙어 있어야 눈에 띕니다. */
+.select-bar{position:sticky;bottom:0;z-index:5;background:var(--bg);padding:10px 0 14px;margin-bottom:4px;}
+.select-bar::before{content:"";position:absolute;left:0;right:0;bottom:100%;height:16px;pointer-events:none;
+  background:linear-gradient(to top,var(--bg),transparent);}
 .timer-note{color:var(--muted);font-size:13px;}
 .privacy-note{color:var(--muted);font-size:12.5px;border-top:1px solid var(--border);padding-top:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 16px;}
 @media (max-width:600px){
@@ -166,8 +175,8 @@ section.step.active{display:block;}
 .ai-say.flat{background:var(--chip-neutral);color:var(--muted);}
 .cond-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
 .cond{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:20px;background:var(--chip-neutral);color:var(--muted);}
-.cond.ok{background:rgba(61,220,132,0.15);color:var(--good);}
-.cond.bad{background:rgba(255,92,92,0.15);color:var(--bad);}
+.cond.ok{background:rgba(61,220,132,0.15);color:var(--good-ink);}
+.cond.bad{background:rgba(255,92,92,0.15);color:var(--bad-ink);}
 .cond.ok::before{content:'✓ ';}
 .cond.bad::before{content:'✕ ';}
 @media (prefers-reduced-motion: reduce){
@@ -181,6 +190,7 @@ section.step.active{display:block;}
 .challenge-mission{font-size:24px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:10px;}
 .challenge-desc{font-size:14.5px;color:var(--text);margin:0 0 16px;line-height:1.5;}
 .challenge-desc b{font-weight:900;}
+.challenge-warn{margin:-8px 0 14px;font-size:13px;font-weight:700;color:var(--warn-ink);}
 .challenge-grid{display:flex;gap:18px;flex-wrap:wrap;}
 .facebox{flex:1 1 340px;min-width:280px;background:#000;border-radius:16px;border:1px solid var(--border);position:relative;aspect-ratio:4/3;overflow:hidden;}
 .facebox svg{width:100%;height:100%;}
@@ -237,6 +247,68 @@ section.step.active{display:block;}
 .result-title{font-size:30px;font-weight:900;margin-bottom:8px;}
 .result-title.ok{color:var(--good);}
 .result-title.bad{color:var(--pink);}
+/* --- 준비(기준 잡기) 화면 --- */
+.calib-overlay{position:fixed;inset:0;z-index:50;background:rgba(5,5,10,0.72);display:flex;align-items:center;justify-content:center;padding:16px;}
+.calib-overlay[hidden]{display:none;}
+.calib-card{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:18px;width:min(440px,100%);max-height:100%;overflow:auto;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35);}
+.calib-cam{position:relative;aspect-ratio:4/3;border-radius:14px;overflow:hidden;background:#000;
+  width:min(100%, calc(45vh*4/3));margin:0 auto;}
+.calib-cam video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block;}
+.calib-guide{position:absolute;left:50%;top:50%;width:44%;height:70%;transform:translate(-50%,-50%);border:2px dashed rgba(255,255,255,.6);border-radius:50%;}
+.calib-count{font-size:56px;font-weight:900;line-height:1;margin:14px 0 6px;color:var(--pink);font-variant-numeric:tabular-nums;}
+.calib-title{font-size:18px;font-weight:900;}
+.calib-sub{font-size:13px;color:var(--muted);margin:6px 0 10px;line-height:1.5;}
+.calib-hint{min-height:21px;font-size:14px;font-weight:800;margin-bottom:12px;}
+.calib-hint.ok{color:var(--good-ink);}
+.calib-hint.warn{color:var(--warn-ink);}
+/* 가로로 낮은 화면(가로 휴대폰, 1024×600 같은 작은 전시용 모니터)에서는 카메라와 안내를 나란히 놓아
+   취소 버튼까지 스크롤 없이 한 화면에 들어오게 합니다. 카메라 높이 = 화면 높이 − 바깥 여백 − 카드 여백. */
+@media (orientation:landscape) and (max-height:600px){
+  #calibOverlay .calib-card{width:min(820px,100%);display:flex;align-items:center;gap:20px;padding:14px;}
+  #calibOverlay .calib-cam{flex:0 0 auto;margin:0;
+    width:min(54%, calc((100vh - 64px)*4/3));width:min(54%, calc((100dvh - 64px)*4/3));}
+  #calibOverlay .calib-info{flex:1 1 0;min-width:0;}
+  #calibOverlay .calib-count{margin-top:0;font-size:48px;}
+}
+.link-btn{background:none;border:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer;margin-top:18px;padding:6px;}
+/* --- 성공 축하(색종이). 결과 화면에서만 잠깐, transform으로만 움직입니다 --- */
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden;}
+.confetti i{position:absolute;top:-18px;width:9px;height:14px;border-radius:2px;will-change:transform;
+  animation:confettiFall var(--d,2s) cubic-bezier(.25,.6,.45,1) forwards;}
+@keyframes confettiFall{to{transform:translate3d(var(--x,0),110vh,0) rotate(var(--r,540deg));}}
+.result-title.ok{animation:titlePop .5s cubic-bezier(.2,1.6,.4,1);}
+@keyframes titlePop{0%{transform:scale(.6);opacity:0;}100%{transform:scale(1);opacity:1;}}
+/* --- 선택 화면 제목 줄의 '오늘 기록' --- */
+.title-row{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px;margin-bottom:18px;}
+.title-row .title{margin-bottom:0;}
+.today-count{font-size:12.5px;font-weight:800;color:var(--zone-ink);background:var(--pink-soft);padding:4px 10px;border-radius:20px;}
+.today-count[hidden]{display:none;}
+/* --- 운영자 설정 --- */
+.logo{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+.op-card{width:min(620px,100%);text-align:left;}
+.op-head{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.op-head b{font-size:18px;}
+.op-sec{margin-top:16px;}
+.op-sec h5{margin:0 0 8px;font-size:13px;color:var(--muted);}
+.op-sec h5 small{font-weight:600;margin-left:6px;}
+.op-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.op-table th,.op-table td{padding:6px 4px;border-bottom:1px solid var(--border);text-align:left;}
+.op-table th{color:var(--muted);font-weight:700;}
+.op-sens{display:grid;grid-template-columns:minmax(110px,1fr) minmax(110px,2fr) 54px;align-items:center;gap:10px;margin:8px 0;}
+.op-sname{font-size:13px;font-weight:800;display:flex;flex-direction:column;}
+.op-sname small{font-weight:600;color:var(--muted);font-size:11px;}
+.op-sens input{width:100%;accent-color:var(--pink);}
+.op-sens output{font-size:14px;font-weight:800;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.op-times{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;}
+.op-times h5{width:100%;}
+.op-times label{font-size:13px;font-weight:700;}
+.op-times select{margin-left:6px;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);font-size:13px;}
+.op-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+.op-note{font-size:12px;color:var(--muted);margin:10px 0 0;}
+/* --- 남은 시간 5초 이하: 원과 숫자가 빨갛게, 숫자가 두근거립니다 --- */
+.ring.hurry #ringProgress{stroke:var(--bad);}
+.ring.hurry .num b{color:var(--bad);animation:hurryBeat 1s ease-in-out infinite;}
+@keyframes hurryBeat{0%,100%{transform:scale(1);}50%{transform:scale(1.18);}}
 .result-say{margin:2px 0 12px;}
 .result-say .ai-say{font-size:14px;padding:6px 14px;}
 .result-desc{color:var(--muted);font-size:14px;margin-bottom:22px;line-height:1.6;}
@@ -264,7 +336,7 @@ table.result-table td b{font-weight:800;}
   <header>
     <div class="logo">AI를 속여라 <span class="badge">미션 3 · 안면 모순</span></div>
     <div class="steps">
-      <span class="step-pill" id="pill0">1 대기</span>
+      <span class="step-pill active" id="pill0">1 대기</span>
       <span class="step-pill" id="pill1">2 미션 확인</span>
       <span class="step-pill" id="pill2">3 도전</span>
       <span class="step-pill" id="pill3">4 결과</span>
@@ -276,20 +348,23 @@ table.result-table td b{font-weight:800;}
       <h2>얼굴로 모순을 만들어 AI를 헷갈리게 하라</h2>
       <p>자신의 얼굴을 보면서 3가지 미션 중 하나에 도전합니다. AI가 내 표정을 제대로 못 읽고 헷갈려하면 성공이에요.<br>영상은 내 화면에서만 재생되며, 어디에도 저장하거나 전송하지 않습니다.</p>
       <button class="primary-btn" id="camBtn">카메라 시작</button>
-      <p id="camError" style="color:var(--bad);font-size:13px;margin-top:14px;display:none;"></p>
+      <p id="camError" style="color:var(--bad-ink);font-size:13px;margin-top:14px;display:none;"></p>
+      <div><button class="link-btn" id="fsBtn" type="button" hidden>전체 화면으로 보기</button></div>
     </div>
   </section>
 
   <section class="step" id="step-select">
     <div class="tagline">얼굴로 모순을 만들어 AI를 헷갈리게 하라</div>
-    <div class="title">도전할 미션을 선택하세요</div>
+    <div class="title-row"><div class="title">도전할 미션을 선택하세요</div><span class="today-count" id="todayCount" hidden></span></div>
     <div class="cards" id="cardsWrap"></div>
-    <div class="select-actions">
-      <button class="secondary-btn" id="rerollBtn">다시 뽑기</button>
-      <button class="primary-btn" id="readyBtn">준비됐어요 · 3초 후 시작</button>
-      <span class="timer-note">제한 시간 20초</span>
+    <div class="select-bar">
+      <p id="calibNote" role="status" aria-live="polite" style="color:var(--bad);font-size:13px;margin:0 0 10px;display:none;"></p>
+      <div class="select-actions">
+        <button class="secondary-btn" id="rerollBtn">다시 뽑기</button>
+        <button class="primary-btn" id="readyBtn">준비됐어요 · 3초 후 시작</button>
+        <span class="timer-note" id="timerNote">제한 시간 20초</span>
+      </div>
     </div>
-    <p id="calibNote" role="status" aria-live="polite" style="color:var(--bad);font-size:13px;margin:0 0 14px;display:none;"></p>
     <div class="privacy-note"><span>한 번에 한 명씩 · 얼굴이 화면 네모 안에 보이게 서 주세요</span><span>카메라 영상과 사진은 저장하지 않아요</span></div>
   </section>
 
@@ -302,6 +377,7 @@ table.result-table td b{font-weight:800;}
       <button class="secondary-btn back-btn" id="backBtn" aria-label="미션 선택으로 돌아가기">← 미션 선택</button>
     </div>
     <p class="challenge-desc" id="challengeDesc"></p>
+    <p class="challenge-warn" id="challengeWarn" role="status" hidden></p>
     <div class="challenge-grid">
       <div class="facebox">
         <canvas id="meshCanvas" class="meshlayer"></canvas>
@@ -387,6 +463,51 @@ table.result-table td b{font-weight:800;}
   </section>
 </div>
 
+<!-- 준비(기준 잡기) 3초 동안 자기 얼굴을 보여주는 화면 -->
+<div class="calib-overlay" id="calibOverlay" role="dialog" aria-modal="true" aria-labelledby="calibTitle" hidden>
+  <div class="calib-card">
+    <div class="calib-cam">
+      <video id="calibVideo" playsinline muted></video>
+      <div class="calib-guide" aria-hidden="true"></div>
+      <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+    </div>
+    <div class="calib-info">
+      <div class="calib-count" id="calibCount">3</div>
+      <div class="calib-title" id="calibTitle">무표정으로 카메라를 바라봐 주세요</div>
+      <div class="calib-sub">AI가 지금 얼굴을 '평소 얼굴'로 기억해요. 웃거나 찡그리지 말고 그대로 있어 주세요.</div>
+      <div class="calib-hint" id="calibHint" role="status" aria-live="polite"></div>
+      <button class="secondary-btn" id="calibCancel" type="button">취소</button>
+    </div>
+  </div>
+</div>
+<div class="confetti" id="confetti" aria-hidden="true"></div>
+
+<!-- 운영자 설정: 로고를 2초 꾹 누르거나 Ctrl+Shift+O. 관람객 화면에는 보이지 않습니다. -->
+<div class="calib-overlay" id="opPanel" role="dialog" aria-modal="true" aria-labelledby="opTitle" hidden>
+  <div class="calib-card op-card">
+    <div class="op-head"><b id="opTitle">운영자 설정</b><button class="secondary-btn" id="opClose" type="button">닫기</button></div>
+    <div class="op-sec">
+      <h5>미션별 기록 <small id="opSince"></small></h5>
+      <table class="op-table"><thead><tr><th>미션</th><th>도전</th><th>성공</th><th>성공률</th><th>가장 많은 실패 이유</th></tr></thead><tbody id="opStats"></tbody></table>
+      <p class="op-note" id="opToday"></p>
+    </div>
+    <div class="op-sec">
+      <h5>감도 <small>100% = 기본 · 높이면 같은 표정을 더 크게 읽어요</small></h5>
+      <div id="opSens"></div>
+    </div>
+    <div class="op-sec op-times">
+      <h5>시간</h5>
+      <label>유지 시간 <select id="opHold"></select></label>
+      <label>제한 시간 <select id="opLimit"></select></label>
+    </div>
+    <div class="op-actions">
+      <button class="secondary-btn" id="opDefaults" type="button">기본값으로</button>
+      <button class="secondary-btn" id="opClear" type="button">기록 지우기</button>
+    </div>
+    <p class="op-note">설정과 기록은 이 기기의 브라우저에만 저장돼요. 카메라 영상이나 사진은 저장하지 않아요.</p>
+  </div>
+</div>
+
 <script>
 const READY_COUNTDOWN = 3, AUTO_RETURN = 10;
 
@@ -398,8 +519,30 @@ const HOLD_SECONDS = 2.0, TIME_LIMIT = 20.0;
    눈을 찡그린 사람에게도 '눈 가늘어짐 0.00 · 통과'와 "조건은 다 만들었다"는 안내가
    나갔습니다. 유지 시간에는 영향이 없습니다. */
 const SETTLE_SECONDS = 0.35;
-function holdSeconds(){ return HOLD_SECONDS; }
-function timeLimit(){ return TIME_LIMIT; }
+/* 운영자 설정(아래 '운영자 설정' 참고). 유지 시간·제한 시간·부위별 감도를 이 기기에 저장해 둡니다.
+   저장된 값이 없거나, 읽을 수 없거나, 허용 범위를 벗어나면 기본값을 씁니다. */
+const SETTINGS_KEY='aiMission3.settings.v1';
+const HOLD_CHOICES=[1.5,2,2.5,3], LIMIT_CHOICES=[15,20,25,30];
+const SENS_DEFAULT={smile:1, eye:1, sadBrow:1, angerBrow:1, frown:1};
+function defaultSettings(){ return {hold:HOLD_SECONDS, limit:TIME_LIMIT, sens:Object.assign({}, SENS_DEFAULT)}; }
+function loadSettings(){
+  const d=defaultSettings();
+  try{
+    const v=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'null');
+    if(v && typeof v==='object'){
+      if(HOLD_CHOICES.indexOf(v.hold)>=0) d.hold=v.hold;
+      if(LIMIT_CHOICES.indexOf(v.limit)>=0) d.limit=v.limit;
+      if(v.sens && typeof v.sens==='object'){
+        for(const k in d.sens){ const x=+v.sens[k]; if(isFinite(x) && x>=0.6 && x<=1.6) d.sens[k]=x; }
+      }
+    }
+  }catch(e){}
+  return d;
+}
+let settings=loadSettings();
+function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(e){} }
+function holdSeconds(){ return settings.hold; }
+function timeLimit(){ return settings.limit; }
 const DEBOUNCE_SECONDS = 0.07;   // 약 2프레임(30fps)에 해당하는 시간
 /* 줄다리기 판정(울면서 웃기 · 울면서 화내기). 두 감정이 모두 30% 이상이고 차이가 10%p
    이내여야 'AI가 어느 쪽인지 못 정하는' 상태입니다. 차이 10%p 이내는 줄다리기 표시가
@@ -411,6 +554,12 @@ const TUG_MIN = 30, TUG_GAP = 10;
 const WIN_SEC = 0.3;
 /* 유지 게이지가 이만큼이라도 찼다면 '조건은 만들었는데 버티지 못한' 경우로 안내합니다. */
 const COLLAPSE_MIN_HOLD = 0.2;
+/* 얼굴을 이 시간 안에 다시 찾으면 '잠깐 놓침'으로 봅니다(유지 시간을 깎지 않음). */
+const FACE_GRACE_SEC = 0.4;
+/* 자세(고개 각도·거리)가 기준을 벗어났다가 돌아온 직후 이만큼은 아직 재지 않습니다. 고개를 크게
+   숙였다 들면 걸러진 값들이 제자리로 돌아오는 데 그만큼 걸리고, 그 사이의 값은 표정이 아니라
+   고개 움직임이라 잠깐 '통과'처럼 보이거나 쌓아 둔 유지 시간을 끊을 수 있었습니다. */
+const POSE_SETTLE_SEC = 0.35;
 
 /* ── One-Euro 필터 ─────────────────────────────────────────────────────────────
    가만히 있을 때는 떨림을 강하게 눌러 주고, 표정이 실제로 바뀔 때는 거의 지연 없이 따라갑니다.
@@ -592,10 +741,14 @@ function faceScale(lm,w,h){
   const a=irisDiameter(lm,w,h,IRIS_L), b=irisDiameter(lm,w,h,IRIS_R);
   let iris=0;
   if(a>1 && b>1){
-    // 한쪽 홍채 피팅이 망가지면(가려짐·반사) 평균이 끌려갑니다. 두 값이 25% 넘게 벌어지면
+    // 한쪽 홍채 피팅이 망가지면(가려짐·반사) 평균이 끌려갑니다. 두 값이 많이 벌어지면
     // 더 큰 쪽을 믿습니다 — 홍채는 가려질 때만 작게 보이고, 커 보일 이유는 없기 때문입니다.
-    const lo=Math.min(a,b), hi=Math.max(a,b);
-    iris = ((hi-lo)/hi > 0.25 ? hi : (a+b)/2);
+    /* 예전에는 25%를 경계로 '평균'과 '큰 쪽'이 뚝 바뀌어서, 안경 반사처럼 두 값이 그 경계
+       근처에서 오가면 기준 길이가 최대 12%씩 계단처럼 오르내렸습니다. 모든 수치가 이 길이로
+       나뉘므로 무표정인데 입 웃음이 50% 넘게 튀는 일이 생길 수 있었습니다. 이제 차이가 10%일
+       때는 평균, 30%일 때는 큰 쪽, 그 사이는 비율대로 섞어 끊김 없이 잇습니다. */
+    const lo=Math.min(a,b), hi=Math.max(a,b), wHi=clamp(((hi-lo)/hi-0.10)/0.20, 0, 1);
+    iris = (a+b)/2*(1-wHi) + hi*wHi;
   } else if(a>1) iris=a;
   else if(b>1) iris=b;
 
@@ -622,7 +775,7 @@ function poseYawProxy(getPt){
 }
 function posePitchProxy(getPt,S){
   const eL=getPt(EYE_L_OUT), eR=getPt(EYE_R_OUT), nose=getPt(NOSE_TIP);
-  return S ? (nose.y-(eL.y+eR.y)/2)/S : 0;  // 고개를 숙이면 줄어듭니다
+  return S ? (nose.y-(eL.y+eR.y)/2)/S : 0;  // 고개를 숙이면 커집니다(코끝이 눈꼬리보다 앞에 있어서)
 }
 
 /* 윗눈꺼풀만의 열림 정도. 흔히 쓰는 EAR은 아랫눈꺼풀까지 포함하는데,
@@ -699,6 +852,11 @@ function computeCornerDrop(getPt,S,idx){
    약 4cm 앞, 입꼬리는 윗입술 가운데보다 약 1.4cm · 입술 사이보다 약 0.9cm 뒤.
    이론값은 0.35 · 0.22인데, 사람마다 얼굴 깊이가 달라 지나치게 보정하지 않도록 약 75%만 씁니다. */
 const PITCH_K_RISE=0.26, PITCH_K_DROP=0.16;
+/* 눈 주변도 같은 이유로 보정합니다. 눈썹 바깥 끝은 안쪽 끝보다 약 1.5~2cm 뒤에 있어서 턱을 들면
+   '팔자 눈썹(슬픔)'처럼, 윗눈꺼풀은 눈꼬리보다 앞에 있어서 고개를 숙이면 눈이 가늘어진 것처럼
+   (진짜 웃음), 눈썹은 눈꺼풀보다 앞에 있어서 고개를 숙이면 눈썹이 내려온 것처럼 보입니다.
+   이론값(약 0.44 · 0.2 · 0.12)의 약 75%만 씁니다. */
+const PITCH_K_SLANT=0.33, PITCH_K_LID=0.15, PITCH_K_GAP=0.09;
 /* 측정 채널마다 One-Euro 필터를 하나씩 둡니다. */
 const FILTER_KEYS=['lidL','lidR','mar','mouthWidth','browGap','riseL','riseR','yaw','pitch','browKnit','browSlant',
   'browGapL','browGapR','dropL','dropR'];
@@ -721,14 +879,19 @@ let calibSamples=null;
 /* yawRaw / widthRaw 는 기준값 계산에는 쓰지 않고, "준비 시간 동안 가만히 있었는지"를
    판정할 때만 씁니다. 필터를 거친 값으로 흔들림을 재면 필터가 흔들림을 지워버려서
    고개를 크게 흔들어도 "안정적"으로 보이기 때문입니다. */
-const CALIB_CHECK_ONLY=['yawRaw','widthRaw'];
+const CALIB_CHECK_ONLY=['yawRaw','widthRaw','marRaw'];
+/* 준비 중 입이 이만큼 벌어져 있으면(약 5mm) 말하는 중이거나 무표정이 아닌 것으로 봅니다.
+   다문 입은 0에 가깝고, 살짝 벌린 정도는 이보다 훨씬 작습니다. */
+const CALIB_MAR_MAX=0.035;
+let calibFeedTimes=[];
 function calibSampleCount(){ return calibSamples ? calibSamples.mouthWidth.length : 0; }
 function startCalibration(){
   /* 필터 초기화를 여기서 함께 합니다. 호출하는 쪽에서 따로 불러주도록 두면 언젠가
      빠뜨리게 되고, 그러면 직전 사람의 얼굴 값이 필터에 남아 새 기준에 섞여 들어갑니다. */
   resetSmooth(); resetAnchors();
   calibSamples={lidL:[],lidR:[],mouthWidth:[],browGap:[],riseL:[],riseR:[],yaw:[],pitch:[],
-    browKnit:[],browSlant:[],browGapL:[],browGapR:[],dropL:[],dropR:[],yawRaw:[],widthRaw:[]};
+    browKnit:[],browSlant:[],browGapL:[],browGapR:[],dropL:[],dropR:[],yawRaw:[],widthRaw:[],marRaw:[]};
+  calibFeedTimes=[];
 }
 /* 캘리브레이션 중의 눈 깜빡임은 "평소 눈 크기"를 실제보다 작게 만들어 기준을 망칩니다.
    그래서 깜빡이는 프레임은 표본에서 제외합니다. */
@@ -740,6 +903,7 @@ function startCalibration(){
    깜빡임은 값을 아래로만 밀기 때문에 하위 절단으로 자연히 제거됩니다. */
 function feedCalibration(v){
   if(!calibSamples) return;
+  calibFeedTimes.push(performance.now()/1000);
   Object.keys(calibSamples).forEach(k=>{
     if(typeof v[k]==='number' && isFinite(v[k])) calibSamples[k].push(v[k]);
   });
@@ -748,7 +912,10 @@ function feedCalibration(v){
    변했는가"로 계산되기 때문에, 기준이 엉터리면 이후 모든 수치가 통째로 틀립니다.
    그래서 (1) 표본 수, (2) 값의 타당성, (3) 흔들림 정도를 모두 확인한 뒤에만 갱신합니다. */
 const CALIB_MIN_SAMPLES=10;
-const CALIB_SETTLE_DROP=15;   // 약 0.5초(30fps) 분량
+/* 버튼을 누른 직후 몸을 뒤로 빼는 동안의 표본은 버립니다. 예전에는 '15프레임'으로 셌는데,
+   그러면 초당 10번 이하로 측정하는 느린 기기에서는 하나도 버리지 않았고, 초당 11~12번인
+   기기에서는 1초 넘게 버렸습니다. 이제 시간(0.5초)으로 셉니다. */
+const CALIB_SETTLE_SEC=0.5;
 function stdev(arr){
   if(arr.length<2) return 0;
   const m=arr.reduce((a,b)=>a+b,0)/arr.length;
@@ -770,7 +937,10 @@ function finishCalibration(){
   if(n < CALIB_MIN_SAMPLES){
     return {ok:false, why:'준비 시간 동안 얼굴을 '+n+'프레임밖에 읽지 못했어요. 얼굴이 화면 안에 다 들어오게 하고, 방을 조금 더 밝게 한 뒤 다시 눌러주세요.'};
   }
-  const settle = a => (a.length > CALIB_SETTLE_DROP*2 ? a.slice(CALIB_SETTLE_DROP) : a);
+  const t0 = calibFeedTimes.length ? calibFeedTimes[0] : 0;
+  const dropN = calibFeedTimes.filter(t=>t<t0+CALIB_SETTLE_SEC).length;
+  /* 버리고 나서도 최소 표본 수가 남을 때만 버립니다. */
+  const settle = a => (a.length-dropN >= CALIB_MIN_SAMPLES ? a.slice(dropN) : a);
   const use={};
   Object.keys(cs).forEach(k=>{ use[k]=settle(cs[k]); });
   const next={};
@@ -799,7 +969,10 @@ function finishCalibration(){
      알려줍니다. */
   const shaky = trimmedStdev(use.mouthWidth) > next.mouthWidth*0.06 ||
                 trimmedStdev(use.yawRaw.length?use.yawRaw:use.yaw) > 0.030;
-  return {ok:true, warn: shaky ? '기준을 잡는 동안 얼굴이 조금 움직였어요. 판정이 이상하면 다시 한 번 해보세요.' : ''};
+  /* 입을 벌린 채(말하면서) 기준이 잡히면 이후 입 관련 수치가 모두 어긋납니다. 막지는 않고 알립니다. */
+  const mouthOpen = use.marRaw && use.marRaw.length>0 && trimmedMean(use.marRaw) > CALIB_MAR_MAX;
+  return {ok:true, warn: mouthOpen ? '입을 벌린 채로 기준이 잡혔어요. 판정이 이상하면 뒤로 가서 입을 다물고 다시 해 보세요.'
+                       : (shaky ? '기준을 잡는 동안 얼굴이 조금 움직였어요. 판정이 이상하면 뒤로 가서 다시 해 보세요.' : '')};
 }
 
 /* ── 눈 깜빡임 구분 ────────────────────────────────────────────────────────────
@@ -1027,8 +1200,8 @@ const MISSIONS=[
     holdName:'점선 칸 유지',
     say:{ pass:'AI: 웃는 거야...? 기쁨인지 모르겠어요', eyes:'AI: 진짜 웃음이네요! 기쁨이에요', mouth:'AI: 웃는 얼굴은 아닌데요?' },
     fb:{ mouth:'입꼬리를 더 활짝 올려 보세요. 입 웃음이 50%를 넘어야 해요.',
-         eyes:'눈까지 웃고 있어요. 눈은 무표정으로 크게 뜨고, 눈썹도 그대로 두세요.' },
-    tips:{ eyes:'웃는 동안 눈을 평소 크기 그대로 크게 뜨고, 눈썹도 그대로 두세요. 눈이 접히거나 눈썹이 내려오면 AI가 바로 진짜 웃음으로 알아챕니다.',
+         eyes:'눈까지 웃고 있어요. 눈은 평소처럼 뜨고, 눈썹도 그대로 두세요.' },
+    tips:{ eyes:'웃는 동안 눈은 평소 크기 그대로 두고, 눈썹도 움직이지 마세요. 눈이 접히거나 눈썹이 내려오면 AI가 바로 진짜 웃음으로 알아챕니다. 눈을 일부러 크게 뜰 필요는 없어요.',
            mouth:'입꼬리를 옆과 위로 더 확실히 당겨 보세요. 살짝 웃는 정도로는 50%가 되지 않아요.',
            collapse:'두 막대가 점선 칸에 들어간 순간, 그 표정 그대로 멈춰 보세요. {hold}초면 됩니다.',
            timeup:'거의 다 됐어요! 이번엔 조금 더 일찍 점선 칸에 들어가 보세요.' },
@@ -1160,7 +1333,8 @@ let holdAccum=0, roundState={}, timeLimitStart=null, challengeDone=false;
    streak  : 지금 이어지는 유지 구간의 평균값(성공했을 때 '성공한 순간') */
 let roundStats=null;
 function resetRoundStats(){
-  roundStats={win:null, best:null, bestBy:{}, clsTime:{}, streak:null, sawPassWin:false, maxHold:0,
+  roundStats={win:null, best:null, bestBy:{}, clsTime:{}, streak:null, bestStreak:null, sawPassWin:false, maxHold:0,
+    lostTime:0, poseTime:0, lastEvalT:0, lastMeasT:0, lastPoseFailT:0, poseWhy:{},
     /* 도전이 시작되면 누구나 잠깐은 무표정입니다(표정을 준비하는 시간). 이 구간까지 세면
        준비가 느린 사람은 그 뒤에 무엇을 했든 '무표정'이 가장 길어집니다. 그래서 표정이
        처음 움직이기 전의 구간은 따로 모아 두고, 끝까지 한 번도 움직이지 않았을 때만 씁니다. */
@@ -1187,16 +1361,22 @@ let lastResultMission=null;
 
 const $=id=>document.getElementById(id);
 function setStep(s){
+  const prev=step;
   step=s;
+  /* 화면이 바뀌면 맨 위부터 보여줍니다. 휴대폰·작은 노트북에서는 '준비됐어요'를 누르려고
+     아래로 내려간 채로 도전 화면이 열려, 정작 맨 위의 카메라 화면이 잘려 보였습니다. */
+  if(prev!==s){ try{ window.scrollTo(0,0); }catch(e){} }
   /* 결과 화면을 벗어나면 '자동으로 처음 화면으로' 카운트다운을 반드시 멈춥니다.
      예전에는 다시하기/처음으로 버튼에서만 멈췄습니다. 그래서 전시장에서 결과를 본 뒤
      카운트다운이 끝나기 전에 바로 다음 도전을 시작하면, 남아 있던 카운트다운이 도전
      중간에 터져서 플레이어를 선택 화면으로 끌어냈습니다. 결과도 안 나오고 타이머만
      멈춘 채 게임이 사라지는, 가장 당황스러운 버그였습니다. */
-  if(s!=='result'){ clearInterval(autoReturnTimer); autoReturnTimer=null; autoReturnActive=false; }
+  if(s!=='result'){ clearInterval(autoReturnTimer); autoReturnTimer=null; autoReturnActive=false; clearConfetti(); }
   /* 카메라가 켜진 뒤(첫 화면이 아닌 동안)에는 뒤로 가기 키를 앱 안에서 받습니다. 아래 '뒤로 가기' 참고. */
   if(s!=='idle') armBackGuard();
-  if(s==='select') selectEnteredAt=performance.now();
+  /* '오늘 기록'은 선택 화면에 올 때마다 다시 그립니다. 밤새 켜 둔 전시 기기에서 자정이 지나면
+     어제 횟수가 '오늘'로 남아 있지 않게 합니다. */
+  if(s==='select'){ selectEnteredAt=performance.now(); paintToday(); }
   /* 선택 화면에 올 때마다 버튼을 쓸 수 있는 상태로 되돌립니다.
      '준비됐어요'를 누르면 버튼이 잠기고, 3초 카운트다운이 끝나는 순간에만 풀렸습니다.
      그래서 그 3초 사이에 카메라가 한 번 빠지면(전시장에서 USB 웹캠이 흔히 그렇습니다)
@@ -1285,22 +1465,54 @@ function showCalibNote(msg){
   const el=$('calibNote');
   if(!el) return;
   el.textContent=msg||'';
-  el.style.color='var(--bad)';
+  el.style.color='var(--bad-ink)';
   el.style.display = msg ? 'block' : 'none';
 }
 /* 준비 3초 동안 무엇이 잘못됐는지 실시간으로 알려줍니다. 예전에는 끝난 뒤에야
    "못 읽었어요"라고만 말해서, 사용자가 무엇을 고쳐야 할지 알 수 없었습니다. */
+let hintShownKey='', hintPendKey='', hintPendSince=0;
 function showCalibHint(kind,msg){
-  const el=$('calibNote');
+  const el=$('calibHint');
   if(!el) return;
-  const text=msg||'', disp=msg?'block':'none', color=kind==='ok'?'var(--good)':'var(--warn)';
-  /* 기준을 잡는 동안 매 프레임 불립니다. 화면에 이미 같은 내용이 있으면 다시 쓰지 않습니다
-     (기억해 둔 값이 아니라 실제 화면과 비교하므로, 그 사이 다른 안내가 써졌어도 어긋나지 않습니다). */
-  if(el.textContent===text && el.style.color===color && el.style.display===disp) return;
-  el.textContent=text; el.style.color=color; el.style.display=disp;
+  const text=msg||'', cls='calib-hint '+(kind==='ok'?'ok':'warn'), key=cls+'|'+text, now=performance.now();
+  /* 기준을 잡는 동안 매 프레임 불립니다. 화면에 이미 같은 내용이면 다시 쓰지 않습니다. */
+  if(el.textContent===text && el.className===cls){ hintShownKey=key; hintPendKey=''; return; }
+  /* 처음 안내는 바로 띄우고, 그다음부터는 새 안내가 0.3초 이어질 때만 바꿉니다. 경계값 근처에서
+     초록 '좋아요'와 노랑 경고가 매 프레임 번갈아 깜빡이지 않게 합니다(화면 읽기 프로그램도). */
+  if(hintShownKey && el.textContent){
+    if(key!==hintPendKey){ hintPendKey=key; hintPendSince=now; return; }
+    if(now-hintPendSince<300) return;
+  }
+  el.textContent=text; el.className=cls; hintShownKey=key; hintPendKey='';
+}
+/* ── 준비 화면(기준 잡기) ─────────────────────────────────────────────────────
+   준비 3초 동안 자기 얼굴을 크게 보여줍니다. 예전에는 이 3초 동안 미션 선택 화면만 보여서,
+   얼굴이 화면 밖에 있거나 웃고 있어도 본인이 알 수 없었고, 그 얼굴이 그대로 '평소 얼굴'
+   기준이 됐습니다. 같은 카메라 영상을 화면용 비디오에 하나 더 연결할 뿐이라 부담은 거의 없습니다. */
+let calibOpenedAt=0;
+/* 준비 화면·운영자 설정이 열려 있는 동안 뒤 화면을 누르거나 Tab으로 들어가지 못하게 합니다. */
+function setBackdropInert(on){ const w=document.querySelector('.wrap'); if(w) w.inert=!!on; }
+function showCalibOverlay(n){
+  const ov=$('calibOverlay'), v=$('calibVideo');
+  if(!ov) return;
+  calibOpenedAt=performance.now();
+  hintShownKey=''; hintPendKey='';
+  setBackdropInert(true);
+  $('calibCount').textContent=String(n);
+  const h=$('calibHint'); if(h){ h.textContent=''; h.className='calib-hint'; }
+  if(v && activeStream){ v.srcObject=activeStream; v.play().catch(()=>{}); }
+  ov.hidden=false;
+  const c=$('calibCancel'); if(c) c.focus({preventScroll:true});
+}
+function hideCalibOverlay(){
+  const ov=$('calibOverlay'), v=$('calibVideo');
+  if(ov && !ov.hidden) setBackdropInert(false);
+  if(ov) ov.hidden=true;
+  if(v && v.srcObject){ try{ v.pause(); }catch(e){} v.srcObject=null; }
 }
 function goSelect(){
   currentMission = pickMission();
+  paintToday();
   showCalibNote('');      // 지난 사람의 '기준 잡기 실패' 안내가 다음 사람에게 남지 않게
   renderCards();
   setStep('select');
@@ -1310,7 +1522,34 @@ function goSelect(){
    예전에는 스트림을 한 번 켜면 끝까지 붙잡고 있었습니다. 카메라 표시등이 계속 켜져 있고
    배터리를 먹으며, 무엇보다 사용자가 "지금 녹화되나?" 하고 불안해지는 문제가 있었습니다. */
 let activeStream=null;
+/* ── 화면 꺼짐 방지 ─────────────────────────────────────────────────────────────
+   카메라가 켜져 있는 동안에는 화면이 어두워지거나 꺼지지 않게 합니다. 도전하는 20초 동안 아무도
+   화면을 만지지 않으니, 노트북 절전 설정에 따라 다음 관람객이 올 즈음 화면이 꺼져 있었습니다.
+   지원하지 않는 브라우저는 그냥 넘어갑니다. 탭이 숨겨지면 브라우저가 스스로 풀기 때문에, 다시
+   보일 때 다시 요청합니다. 카메라를 끄면(첫 화면) 바로 풀어 줍니다. */
+let wakeLock=null, wakePending=false, wakeWanted=false;
+function requestWake(){
+  wakeWanted=true;
+  if(wakeLock || wakePending || document.hidden) return;
+  let p;
+  try{ if(!navigator.wakeLock || !navigator.wakeLock.request) return; p=navigator.wakeLock.request('screen'); }
+  catch(e){ return; }
+  wakePending=true;
+  Promise.resolve(p).then(l=>{
+    wakePending=false;
+    if(!l) return;
+    if(!wakeWanted){ try{ l.release().catch(()=>{}); }catch(e){} return; }
+    wakeLock=l;
+    try{ l.addEventListener('release', ()=>{ if(wakeLock===l) wakeLock=null; }); }catch(e){}
+  }, ()=>{ wakePending=false; });
+}
+function releaseWake(){
+  wakeWanted=false;
+  const l=wakeLock; wakeLock=null;
+  if(l){ try{ l.release().catch(()=>{}); }catch(e){} }
+}
 function stopCamera(){
+  releaseWake();
   if(activeStream){
     try{ activeStream.getTracks().forEach(t=>t.stop()); }catch(e){}
     activeStream=null;
@@ -1325,7 +1564,7 @@ function handleCameraLost(reason){
   clearInterval(readyTimer); readyTimer=null;
   /* 준비(기준 잡기) 중에 끊기면 기준 잡기도 멈춥니다. 안 그러면 다시 켰을 때 선택 화면에서도
      얼굴 인식이 계속 돌고, '무표정을 유지해주세요' 안내가 다음 사람에게까지 남았습니다. */
-  calibSamples=null; showCalibNote('');
+  calibSamples=null; showCalibNote(''); hideCalibOverlay();
   clearInterval(autoReturnTimer);
   cancelAnimationFrame(challengeAnimId);
   challengeDone=true;
@@ -1347,7 +1586,11 @@ document.addEventListener('visibilitychange', ()=>{
   if(document.hidden){
     hiddenAt=performance.now()/1000;
   } else {
-    const away=hiddenAt===null?0:(performance.now()/1000-hiddenAt);
+    /* 숨겨진 사이에 도전이 시작됐다면 그 시작 시각부터만 셉니다. 숨긴 시각부터 세면 제한
+       시간이 20초를 넘게 늘어나 숫자와 원이 이상하게 보였습니다. */
+    const nowS=performance.now()/1000;
+    const from=(hiddenAt!==null && timeLimitStart!==null && timeLimitStart>hiddenAt) ? timeLimitStart : hiddenAt;
+    const away=from===null?0:Math.max(0, nowS-from);
     hiddenAt=null;
     if(step==='challenge' && timeLimitStart!==null && !challengeDone){
       timeLimitStart += away;            // 자리를 비운 시간은 제한 시간에서 빼지 않습니다
@@ -1357,6 +1600,7 @@ document.addEventListener('visibilitychange', ()=>{
     lastFrameT=null; resetAnchors(); resetSmooth(); resetBlink();
     const v=$('video');
     if(v && v.srcObject && v.paused){ v.play().catch(()=>{}); }
+    if(wakeWanted && activeStream) requestWake();
   }
 });
 
@@ -1381,6 +1625,34 @@ function loadScript(url){
     el.onload=()=>res(); el.onerror=()=>rej(new Error('script load failed'));
     document.head.appendChild(el);
   });
+}
+/* 기다리는 일에 시간 제한을 둡니다. 제한을 넘기면 실패로 보고 다시 시도할 수 있게 합니다. */
+const CAM_WAIT_MS=10000, MODEL_WAIT_MS=60000;
+function withTimeout(p, ms, msg){
+  return new Promise((res,rej)=>{
+    const t=setTimeout(()=>rej(new Error(msg)), ms);
+    Promise.resolve(p).then(v=>{ clearTimeout(t); res(v); }, e=>{ clearTimeout(t); rej(e); });
+  });
+}
+/* 얼굴 인식 모델 준비. 한 번 준비되면 계속 재사용하고(뒤로 가기·카메라 끊김 뒤에도), 준비가
+   끝나기 전에는 faceMesh에 넣지 않아 반쯤 준비된 모델에 영상을 보내는 일이 없게 합니다.
+   준비 도중에 '카메라 시작'이 다시 눌려도 같은 준비를 기다려, 모델이 두 개 만들어지지 않습니다. */
+let faceMeshInit=null;
+function prepareFaceMesh(){
+  if(!faceMeshInit){
+    faceMeshInit=(async ()=>{
+      if(faceMesh) return faceMesh;
+      if(!(await ensureFaceMesh())) throw new Error('얼굴 인식 라이브러리를 어느 CDN에서도 불러오지 못했습니다.');
+      const fm=new FaceMesh({locateFile:(f)=>MP_BASE+f});
+      fm.setOptions({maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.65, minTrackingConfidence:0.6});
+      fm.onResults(onResults);
+      await fm.initialize();
+      faceMesh=fm;
+      return fm;
+    })();
+    faceMeshInit.catch(()=>{ faceMeshInit=null; });
+  }
+  return faceMeshInit;
 }
 async function ensureFaceMesh(){
   for(let i=0;i<MP_BASES.length;i++){
@@ -1432,15 +1704,23 @@ $('camBtn').addEventListener('click', async ()=>{
   }
   activeStream=stream;
   /* 사용 중 카메라가 뽑히거나 권한이 회수되면 조용히 멈춘 채로 남아 있었습니다.
-     이제 즉시 알리고 처음 화면으로 되돌립니다. */
+     이제 즉시 알리고 처음 화면으로 되돌립니다. (이미 버린 예전 카메라의 신호는 무시합니다.) */
   stream.getVideoTracks().forEach(t=>{
-    t.addEventListener('ended', ()=>{ handleCameraLost('카메라 연결이 끊어졌습니다.'); });
+    t.addEventListener('ended', ()=>{ if(activeStream===stream) handleCameraLost('카메라 연결이 끊어졌습니다.'); });
   });
+  /* 아래 단계를 기다리는 사이에 카메라가 끊기거나(→ 첫 화면) '카메라 시작'이 다시 눌리면(→ 새
+     시도), 이 시도는 조용히 그만둡니다. 예전에는 그래도 끝까지 진행해서 카메라 없이 미션 선택
+     화면이 열렸고, 준비할 때마다 '얼굴을 0프레임밖에 읽지 못했어요'만 나왔습니다. */
+  const stale=()=>activeStream!==stream;
   try{
     const video=$('video'); video.srcObject=stream;
-    await new Promise(res=>{ video.onloadedmetadata=res; });
-    await video.play();
+    /* 권한은 줬는데 영상이 안 들어오는 카메라도 있습니다. 기다리기만 하면 '카메라 준비 중...'에서
+       영원히 멈추므로 10초가 넘으면 실패로 보고 다시 시도할 수 있게 합니다. */
+    await withTimeout(new Promise(res=>{ video.onloadedmetadata=res; }), CAM_WAIT_MS, '카메라에서 영상이 들어오지 않습니다');
+    if(stale()) return;
+    await withTimeout(video.play(), CAM_WAIT_MS, '카메라 영상이 재생되지 않습니다');
   }catch(e){
+    if(stale()){ try{ stream.getTracks().forEach(t=>t.stop()); }catch(_){} return; }
     console.error('video play failed:', e);
     /* 실패했으면 이미 받아 둔 카메라를 반드시 놓아줘야 합니다. 안 놓으면 카메라 표시등이
        계속 켜져 있고, 다시 누를 때 새 스트림을 또 받으면서 앞의 것은 영구히 남습니다.
@@ -1452,24 +1732,21 @@ $('camBtn').addEventListener('click', async ()=>{
     $('camBtn').disabled=false; $('camBtn').textContent='카메라 시작';
     return;
   }
+  if(stale()) return;
   try{
-    /* 뒤로 가기로 첫 화면에 갔다가 다시 켤 때는 이미 준비된 얼굴 인식 모델을 그대로 씁니다.
-       매번 새로 만들면 모델 파일을 다시 받고, 이전 모델의 메모리가 쌓여 점점 느려집니다. */
-    if(!faceMesh){
-      if(!(await ensureFaceMesh())) throw new Error('얼굴 인식 라이브러리를 어느 CDN에서도 불러오지 못했습니다.');
-      faceMesh=new FaceMesh({locateFile:(f)=>MP_BASE+f});
-      faceMesh.setOptions({maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.65, minTrackingConfidence:0.6});
-      faceMesh.onResults(onResults);
-      await faceMesh.initialize();
-    }
+    await withTimeout(prepareFaceMesh(), MODEL_WAIT_MS, '얼굴 인식 모델 준비가 너무 오래 걸립니다');
+    if(stale()) return;
     startTick();
+    requestWake();
     goSelect();
   }catch(e){
+    if(stale()) return;
     console.error('FaceMesh init failed:', e);
     /* 모델을 못 불러온 경우도 같습니다. 전시장 와이파이가 한 번 끊겨 CDN을 놓치면,
        카메라를 쥔 채 아무것도 못 하는 상태로 남아 새로고침 외에 방법이 없었습니다. */
     stopCamera();
-    faceMesh=null;
+    /* 시간 제한에 걸린 경우 모델 준비는 뒤에서 계속되고 있을 수 있습니다. 다시 누르면 새로 만들지
+       않고 그 준비를 이어서 기다립니다(진짜로 실패했다면 prepareFaceMesh가 알아서 비워 둡니다). */
     $('camError').style.display='block';
     $('camError').textContent='얼굴 인식 모델을 불러오지 못했습니다. 인터넷 연결을 확인하거나, 오프라인으로 쓰려면 index.html 옆에 mediapipe 폴더를 넣어주세요. 상세: '+e.message;
     $('camBtn').disabled=false; $('camBtn').textContent='카메라 시작';
@@ -1487,17 +1764,20 @@ $('readyBtn').addEventListener('click', ()=>{
   startCalibration(); resetBlink();
   let n=READY_COUNTDOWN, extra=0;
   $('readyBtn').textContent = n+'초 후 시작...';
+  showCalibOverlay(n);
   readyTimer=setInterval(()=>{
     n--;
-    if(n>0){ $('readyBtn').textContent=n+'초 후 시작...'; return; }
+    if(n>0){ $('readyBtn').textContent=n+'초 후 시작...'; $('calibCount').textContent=String(n); return; }
 
     const enough = calibSampleCount()>=CALIB_MIN_SAMPLES;
     if(!enough && extra<CALIB_EXTRA_MAX){
       extra++;
       $('readyBtn').textContent='자세 맞추는 중...';
+      $('calibCount').textContent='…';
       return;                              // 표본이 모일 때까지 조금 더 기다립니다
     }
     clearInterval(readyTimer); readyTimer=null;
+    hideCalibOverlay();
     const res=finishCalibration();
     $('readyBtn').disabled=false; $('rerollBtn').disabled=false;
     $('readyBtn').textContent='준비됐어요 · 3초 후 시작';
@@ -1506,13 +1786,14 @@ $('readyBtn').addEventListener('click', ()=>{
       return;
     }
     showCalibNote('');
-    startChallenge();
-    if(res.warn) setFeedback('', res.warn);
+    startChallenge(res.warn);
   },1000);
 });
 
-function startChallenge(){
+function startChallenge(warn){
   if(!currentMission) currentMission=pickMission();
+  const cw=$('challengeWarn');
+  if(cw){ cw.textContent=warn||''; cw.hidden=!warn; }
   holdAccum=0; roundState={}; resetRoundStats(); challengeDone=false;
   lastFrameT=null; resetBlink(); resetAnchors();
   /* 지난 라운드의 점 위치가 새 영상 프레임 위에 한 번 겹쳐 그려지지 않게 비웁니다. */
@@ -1737,10 +2018,12 @@ function onResults(results){
          '조언'으로만 보여줍니다. 기준이 조금 흔들려도 한 판 다시 하면 되지만,
          시작을 못 하면 아무것도 할 수 없습니다. */
       const cq=calibQuality(S,yawRaw,jump,true);
-      showCalibHint(cq.ok?'ok':'warn', cq.why);
+      const marNow=computeMAR(rot.get,S);
+      if(cq.ok && mar>CALIB_MAR_MAX) showCalibHint('warn','입을 다물고 얼굴에 힘을 빼 주세요.');
+      else showCalibHint(cq.ok?'ok':'warn', cq.why);
       feedCalibration({lidL,lidR,mouthWidth,browGap,riseL,riseR,yaw,pitch,browKnit,browSlant,
         browGapL,browGapR,dropL,dropR,
-        yawRaw:yawRaw, widthRaw:computeMouthWidthNorm(rot.get,S)});
+        yawRaw:yawRaw, widthRaw:computeMouthWidthNorm(rot.get,S), marRaw:marNow});
     }
 
     /* 고개 끄덕임 보정. 입꼬리는 입술 가운데보다 1cm쯤 뒤에 있어서, 고개를 숙이면 화면에서
@@ -1753,17 +2036,21 @@ function onResults(results){
     const rawLiftL=rawCornerLift(riseLc, baseline.riseL);
     const rawLiftR=rawCornerLift(riseRc, baseline.riseR);
     const liftL=scoreCornerLift(riseLc, baseline.riseL), liftR=scoreCornerLift(riseRc, baseline.riseR);
-    const closure=eyeClosureGuarded(lidClosure((lidL+lidR)/2), holdLidFilter);
-    const brow=browSignals(browGap, browKnit, browSlant);
-    const mouthSmile=scoreMouthSmile(mouthWidth, (rawLiftL+rawLiftR)/2);
-    const sadBrow=scoreSadBrow(brow), angerBrow=scoreAngerBrow(brow);
-    const mouthFrown=scoreMouthFrown(dropLc, dropRc);
+    const lidLc=lidL+PITCH_K_LID*dPitch, lidRc=lidR+PITCH_K_LID*dPitch;
+    const browGapC=browGap+PITCH_K_GAP*dPitch, browSlantC=browSlant+PITCH_K_SLANT*dPitch;
+    const closure=eyeClosureGuarded(lidClosure((lidLc+lidRc)/2), holdLidFilter);
+    const brow=browSignals(browGapC, browKnit, browSlantC);
+    /* 운영자 설정의 부위별 감도(기본 100%). 같은 움직임을 얼마나 크게 읽을지 정합니다. */
+    const SN=settings.sens, sens=(v,k)=>clamp(v*SN[k],0,1);
+    const mouthSmile=sens(scoreMouthSmile(mouthWidth, (rawLiftL+rawLiftR)/2),'smile');
+    const sadBrow=sens(scoreSadBrow(brow),'sadBrow'), angerBrow=sens(scoreAngerBrow(brow),'angerBrow');
+    const mouthFrown=sens(scoreMouthFrown(dropLc, dropRc),'frown');
     const metrics={
       /* eyeFrozen: 이 프레임의 눈 수치가 실측이 아니라 깜빡임 직전 값으로 얼어 있다는 표시.
          결과표의 '가장 가까웠던 순간'을 고를 때 이런 프레임을 제외하는 데 씁니다. */
       eyeFrozen: holdLidFilter,
       mouthSmile: mouthSmile,
-      eyeSmile: scoreEyeSmile(closure, browGap),
+      eyeSmile: sens(scoreEyeSmile(closure, browGapC),'eye'),
       /* AI가 읽은 감정의 세기(0~1). 미션마다 카드에 적힌 부위만 읽습니다.
          울면서 웃기: 입 → 기쁨(joyE), 눈썹 → 슬픔(sadBrow)
          울면서 화내기: 눈썹 → 화남(angerE), 입 → 슬픔(mouthFrown)
@@ -1773,7 +2060,7 @@ function onResults(results){
       angerE: angerBrow,
       /* 아래는 그림(AI 인식 모델)을 움직이는 데만 씁니다. */
       eyeSquint: scoreEyeSquint(closure),
-      browDrop: scoreBrowDrop(browGap),
+      browDrop: scoreBrowDrop(browGapC),
       sadBrow: sadBrow,
       angerBrow: angerBrow,
       mouthFrown: mouthFrown,
@@ -1797,21 +2084,28 @@ function onResults(results){
     faceLostDecay=true;
     queueCameraView(null, w, h);
     setTrackStatus('var(--bad)', '얼굴이 검출되지 않았습니다');
+    if(calibSamples) showCalibHint('warn', '얼굴이 보이지 않아요. 화면 가운데에 얼굴을 맞춰주세요.');
     if(step==='challenge') evaluateChallenge(null,false,{ok:false,why:''},0);
   }
 }
 /* 카메라 위 추적 상태 표시. 매 프레임 불리므로 바뀔 때만 다시 씁니다. 예전에는 매번 통째로
    다시 만들어서, 화면 계산이 늘고 깜빡이는 점의 애니메이션이 매번 처음부터 다시 시작돼
    실제로는 깜빡이지 않았습니다. */
-let lastTrackStatus='';
+let lastTrackColor='', lastTrackText='', trackDotEl=null, trackTextEl=null;
 function setTrackStatus(color, text){
-  const key=color+'|'+text;
-  if(key===lastTrackStatus) return;
-  lastTrackStatus=key;
-  const el=$('trackStatus');
-  if(!el) return;
-  el.innerHTML='<span class="track-dot"'+(color==='var(--good)'?'':' style="background:'+color+';"')+'></span><span>'+text+'</span>';
-  el.style.color=color;
+  if(!trackDotEl){
+    const el=$('trackStatus'); if(!el) return;
+    trackDotEl=el.querySelector('.track-dot'); trackTextEl=el.querySelector('span:not(.track-dot)');
+    if(!trackDotEl || !trackTextEl) return;
+  }
+  /* 점은 그대로 두고 색만, 글자는 글자만 바꿉니다. 고개를 조금만 움직여도 '기울기 n°'가 바뀌는데,
+     예전에는 그때마다 통째로 다시 만들어 깜빡이는 점의 애니메이션이 매번 처음부터 시작됐습니다. */
+  if(color!==lastTrackColor){
+    trackDotEl.style.background = color==='var(--good)' ? '' : color;
+    $('trackStatus').style.color=color;
+    lastTrackColor=color;
+  }
+  if(text!==lastTrackText){ trackTextEl.textContent=text; lastTrackText=text; }
 }
 
 /* --- 얼굴 스키매틱 애니메이션: 실제 인식값(targetMetrics)을 부드럽게 보간(lerp)하여
@@ -1994,11 +2288,14 @@ function debounced(key, rawPass, dt){
   /* 이 변수 이름은 'step'이면 안 됩니다. 전역 step(현재 화면 상태)을 가려버려서,
      이 안에서 화면 상태를 보려는 코드가 나중에 추가되면 숫자를 읽게 됩니다. */
   const dtStep=clamp(dt||0, 0, 0.25);
+  /* 기준 시간은 0.07초 또는 측정 간격의 1.5배 중 긴 쪽입니다. 초당 14번 이하로 측정하는 느린
+     기기에서는 측정 한 번 간격이 이미 0.07초를 넘어서, 잡음 한 프레임에 유지가 통째로 끊겼습니다. */
+  const th=Math.max(DEBOUNCE_SECONDS, 1.5*dtStep);
   if(rawPass){ roundState[spKey]=(roundState[spKey]||0)+dtStep; roundState[sfKey]=0; }
   else { roundState[sfKey]=(roundState[sfKey]||0)+dtStep; roundState[spKey]=0; }
   if(roundState[stKey]===undefined) roundState[stKey]=rawPass;
-  if(roundState[spKey]>=DEBOUNCE_SECONDS) roundState[stKey]=true;
-  if(roundState[sfKey]>=DEBOUNCE_SECONDS) roundState[stKey]=false;
+  if(roundState[spKey]>=th) roundState[stKey]=true;
+  if(roundState[sfKey]>=th) roundState[stKey]=false;
   return roundState[stKey];
 }
 /* 측정할 수 없는 동안에는 막대를 마지막 값에 둔 채 AI의 한마디만 바꿉니다. */
@@ -2039,18 +2336,34 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
   const timeLeft = Math.max(0, TL-(now-timeLimitStart));
   /* 남은 시간 숫자와 원은 화면 루프(challengeLoop)가 그립니다. */
 
-  const m=currentMission;
-  const faceOk = faceSeen && (now-lastFaceTime<=0.4);
-  const measurable = faceOk && quality && quality.ok;
+  const m=currentMission, rs=roundStats;
+  /* 얼굴을 한두 프레임 놓치는 일은 흔합니다(손이 턱 근처를 지나가거나 빠르게 움직일 때).
+     0.4초 안에 다시 잡히면 '잠깐 놓침'으로 보고 유지 시간을 그대로 둡니다(늘리지도 줄이지도
+     않음). 예전에도 이 유예가 있는 것처럼 써 있었지만, 계산 순서 때문에 실제로는 한 프레임만
+     놓쳐도 1.8초 쌓인 유지가 0이 됐습니다. */
+  const briefLoss = !faceSeen && (now-lastFaceTime)<=FACE_GRACE_SEC;
+  const faceGone = !faceSeen && !briefLoss;
+  const poseOk = faceSeen && quality && quality.ok;
+  if(faceSeen && !poseOk) rs.lastPoseFailT=now;
+  const settling = poseOk && rs.lastPoseFailT>0 && (now-rs.lastPoseFailT)<POSE_SETTLE_SEC;
+  const measurable = poseOk && !settling;
   let allPass=false, rawAll=false, vals=null;
+  /* 얼굴이 없던 시간 · 자세 때문에 못 잰 시간. 결과 화면에서 '왜 못 읽었는지'를 고르는 데 씁니다. */
+  const dw = rs.lastEvalT ? clamp(now-rs.lastEvalT, 0, 0.25) : 0;
+  rs.lastEvalT=now;
+  if(faceGone) rs.lostTime+=dw;
+  else if(faceSeen && !measurable) rs.poseTime+=dw;
 
-  if(!faceOk){
+  if(faceGone){
     setFeedback('bad','얼굴이 화면에 보이지 않아요. 카메라 중앙에 얼굴을 맞춰주세요.');
     holdSay('AI: 얼굴이 안 보여요');
+  } else if(briefLoss || settling){
+    /* 잠깐 놓침 · 자세가 막 돌아온 직후: 화면은 그대로 두고(유지 시간도 그대로) 기다립니다. */
   } else if(!quality.ok){
     // 측정할 수 없는 자세입니다. 조건이 깨진 것과는 다르므로 유지 시간을 깎지 않고 멈춥니다.
     setFeedback('bad', quality.why);
     holdSay('AI: 얼굴이 잘 안 보여요');
+    rs.poseWhy[quality.why]=(rs.poseWhy[quality.why]||0)+dw;
   } else {
     /* 화면 숫자, 조건 칩, 유지 게이지, AI의 한마디가 모두 같은 정수 % 값과 같은 판정
        함수(evalVals)에서 나옵니다. 그래서 서로 다른 말을 하지 않습니다. */
@@ -2071,11 +2384,9 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
   if(measurable){
     if(allPass) holdAccum += clamp(dt||0, 0, 0.25);
     else holdAccum = 0;
-  } else if(!faceOk){
-    holdAccum = 0;   // 얼굴이 사라진 건 유지 실패로 봅니다
+  } else if(faceGone){
+    holdAccum = 0;   // 얼굴이 사라진 건(0.4초 넘게) 유지 실패로 봅니다
   }
-  const rs=roundStats;
-  if(holdAccum>rs.maxHold) rs.maxHold=holdAccum;
   /* 성공했을 때 결과표에 보여줄 '성공한 순간'. 지금 이어지는 유지 구간에서 조건을 실제로
      만족한 프레임만 모읍니다. 만족한 값들의 평균은 반드시 조건을 만족하므로(반올림해도
      마찬가지), 성공 화면에 '걸림'이 찍히는 일이 생기지 않습니다. */
@@ -2083,6 +2394,13 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
   else if(measurable && rawAll && vals){
     const d=clamp(dt||0,0,0.25);
     if(d>0) accAdd(rs.streak || (rs.streak={t:0,sum:{}}), vals, d);
+  }
+  /* 가장 오래 버틴 유지 구간의 값을 따로 기억해 둡니다. '2초 전에 무너졌어요' 화면의 표가
+     그 순간의 (조건을 만족한) 값을 보여주도록 — 0.3초 평균 구간 두 개에 걸친 짧은 유지는
+     어느 구간도 통과로 잡히지 않아, 글은 '넣었지만'인데 표는 '미달'투성이일 수 있었습니다. */
+  if(holdAccum>rs.maxHold){
+    rs.maxHold=holdAccum;
+    if(rs.streak && rs.streak.t>0) rs.bestStreak={t:rs.streak.t, sum:Object.assign({}, rs.streak.sum)};
   }
 
   const HT=holdSeconds();
@@ -2097,9 +2415,16 @@ function evaluateChallenge(metrics, faceSeen, quality, dt){
      동시에 만족한 적이 없는데도 전부 통과처럼 보였습니다).
      시작 직후(필터가 무표정에서 출발해 올라오는 구간)와, 입만 웃기에서 깜빡이는 프레임(눈
      값이 실측이 아니라 직전 값으로 얼어 있음)은 뺍니다. */
-  if(!measurable) rs.win=null;
-  else if((now-timeLimitStart)>=SETTLE_SECONDS && !(m.kind==='zones' && metrics && metrics.eyeFrozen))
+  /* 얼굴이 사라지면 모으던 구간을 버리고, 자세 문제·잠깐 놓침은 그 프레임만 건너뜁니다(구간은 이어 감).
+     자세가 계속 깜빡이면 구간이 하나도 안 채워져 '얼굴을 못 찾았어요'가 잘못 나오던 문제입니다. */
+  if(faceGone) rs.win=null;
+  else if(measurable && (now-timeLimitStart)>=SETTLE_SECONDS && !(m.kind==='zones' && metrics && metrics.eyeFrozen)){
+    /* 측정이 0.15초 넘게 끊겼다가(자세 문제·깜빡임 등) 이어지면 모으던 구간을 버립니다. 떨어진 두
+       순간을 하나의 0.3초 평균으로 섞으면, 실제로는 없던 '통과' 순간이 만들어질 수 있습니다. */
+    if(rs.win && rs.lastMeasT && now-rs.lastMeasT>0.15) rs.win=null;
     statsWindow(m, vals, dt);
+    rs.lastMeasT=now;
+  }
 
   if(holdAccum>=HT){ finishChallenge(true); return; }
   if(timeLeft<=0){ finishChallenge(false); return; }
@@ -2117,9 +2442,14 @@ function challengeLoop(){
 /* 남은 시간 표시. 예전에는 측정마다·화면 프레임마다 두 군데서 매번 썼습니다. 숫자는 바뀔
    때만, 원은 화면에서 실제로 움직일 만큼(약 0.1px) 바뀔 때만 씁니다. */
 let lastTimerNum='', lastRingOffset='';
+let ringEl=null, lastHurry=false;
 function paintTimer(timeLeft, TL){
   const n=String(Math.ceil(timeLeft));
   if(n!==lastTimerNum){ $('timeLeftNum').textContent=n; lastTimerNum=n; }
+  /* 마지막 5초: 원과 숫자가 빨갛게 바뀌고 숫자가 두근거립니다. */
+  const hurry = timeLeft>0 && timeLeft<=5;
+  if(!ringEl) ringEl=document.querySelector('#step-challenge .ring');
+  if(ringEl && hurry!==lastHurry){ ringEl.classList.toggle('hurry', hurry); lastHurry=hurry; }
   const off=(276.5*(1-timeLeft/TL)).toFixed(1);
   if(off!==lastRingOffset){ $('ringProgress').setAttribute('stroke-dashoffset', off); lastRingOffset=off; }
 }
@@ -2138,18 +2468,27 @@ function finishChallenge(ok){
        입만 웃기   : 눈까지 같이 웃음 / 입꼬리가 덜 올라감 / 2초 전에 무너짐
        줄다리기    : 한 감정이 이김 / 둘 다 낮은 무표정 / 2초 전에 구간 밖 */
   let vals=null, reason='ok';
+  const avgOf = acc => (acc && acc.t>0) ? accAvg(acc) : null;
+  const pickVals = (...cands) => { for(const c of cands){ if(c) return c; } return null; };
+  /* 실제로 잰 시간(0.3초 구간들의 합). 못 잰 시간(얼굴 없음·자세 문제)이 이보다 길면 표정이 아니라
+     '읽을 수 없었던 것'이 실패 이유입니다. */
+  let measured=0;
+  [rs.clsTime, rs.pre.clsTime].forEach(ct=>{ for(const c in ct) measured+=ct[c]; });
   if(ok){
-    vals = (rs.streak && rs.streak.t>0) ? accAvg(rs.streak) : (rs.best ? rs.best.vals : null);
-  } else if(!rs.best){
-    reason='noface';
+    vals = pickVals(avgOf(rs.streak), avgOf(rs.bestStreak), rs.best && rs.best.vals);
   } else if(holdAccum>0){
     /* 조건을 지키고 있는 도중에 제한 시간이 끝났습니다. '무너졌다'고 하면 틀린 말입니다. */
     reason='timeup';
-    vals=(rs.streak && rs.streak.t>0) ? accAvg(rs.streak) : (rs.bestBy.pass || rs.best).vals;
+    vals = pickVals(avgOf(rs.streak), avgOf(rs.bestStreak), rs.bestBy.pass && rs.bestBy.pass.vals, rs.best && rs.best.vals);
   } else if(rs.maxHold>=COLLAPSE_MIN_HOLD || rs.sawPassWin){
-    /* 한 번이라도 조건 안에 들어갔다면 고칠 것은 표정이 아니라 '버티기'입니다. */
+    /* 한 번이라도 조건 안에 들어갔다면 고칠 것은 표정이 아니라 '버티기'입니다. 표에는 가장 오래
+       버틴 그 순간(조건을 만족한 값)을 보여줍니다. */
     reason='collapse';
-    vals=(rs.bestBy.pass || rs.best).vals;
+    vals = pickVals(avgOf(rs.bestStreak), rs.bestBy.pass && rs.bestBy.pass.vals, rs.best && rs.best.vals);
+  } else if(!rs.best || Math.max(rs.lostTime, rs.poseTime)>measured){
+    /* 대부분 읽지 못했습니다. 얼굴이 안 보였는지, 보였지만 각도 때문에 못 쟀는지 구분합니다. */
+    reason = rs.poseTime>rs.lostTime ? 'pose' : 'noface';
+    vals = rs.best ? rs.best.vals : null;
   } else {
     /* 가장 오래 머문 상태가 실패 이유이고, 결과표에는 그 상태 안에서 가장 가까웠던 순간을
        보여줍니다. 그래야 이유 · 숫자 · 조언이 같은 이야기를 합니다. */
@@ -2167,7 +2506,7 @@ function finishChallenge(ok){
      강조하고, 마지막 줄의 '유지 시간'으로 왜 들켰는지가 표에서도 바로 보이게 합니다. */
   $('resultColHead').textContent = ok ? '성공한 순간' : '가장 가까웠던 순간';
   const row=(name, val, std, pass)=>'<tr><td>'+name+'</td><td><b>'+val+'</b></td><td>'+std+'</td>'+
-    '<td style="color:'+(pass===null?'var(--muted)':(pass?(ok?'var(--good)':'var(--muted)'):'var(--bad)'))+
+    '<td style="color:'+(pass===null?'var(--muted)':(pass?(ok?'var(--good-ink)':'var(--muted)'):'var(--bad-ink)'))+
     ';font-weight:'+(pass===false||ok?'800':'600')+';">'+(pass===null?'-':(pass?'충족':'미달'))+'</td></tr>';
   let rowsHtml='';
   if(m.kind==='zones'){
@@ -2190,6 +2529,15 @@ function finishChallenge(ok){
     say={text:'AI: 얼굴을 못 찾았어요', tone:'flat'};
     desc='얼굴을 제대로 읽지 못했어요. 얼굴이 화면 네모 안에 보이게, 정면을 보고 서 주세요.';
     tip='얼굴 전체가 화면 네모 안에 들어오게 서고, 방이 어두우면 조금 더 밝은 곳에서 해 보세요.';
+  } else if(reason==='pose'){
+    say={text:'AI: 얼굴이 잘 안 보여요', tone:'flat'};
+    /* 못 잰 이유 중 가장 오래 이어진 것(각도·거리·흔들림)을 그대로 알려줍니다. */
+    let topWhy='', topT=-1;
+    for(const w in rs.poseWhy){ if(rs.poseWhy[w]>topT){ topT=rs.poseWhy[w]; topWhy=w; } }
+    desc='<b>AI가 표정을 제대로 읽지 못했어요.</b> '+(topWhy||'카메라를 정면으로 봐주세요.');
+    tip = /작아요/.test(topWhy) ? '카메라에 조금 더 가까이 와서, 얼굴이 화면 네모를 넉넉히 채우게 해 보세요.'
+        : /흔들렸어요/.test(topWhy) ? '고개와 몸은 가만히 두고, 표정만 바꿔 보세요.'
+        : '카메라를 정면으로 보고 고개를 똑바로 든 채로, 표정만 바꿔 보세요. 고개를 숙이거나 돌리면 측정이 멈춰요.';
   } else if(m.kind==='zones'){
     if(ok){
       say={text:m.say.pass, tone:''};
@@ -2242,6 +2590,10 @@ function finishChallenge(ok){
   }
   $('resultTitle').textContent = ok ? 'AI를 속였어요!' : '들켰어요!';
   $('resultTitle').className = 'result-title ' + (ok?'ok':'bad');
+  /* 결과 화면은 도전하는 동안 숨겨져 있다가 나타나므로, 연달아 성공해도 제목 애니메이션이
+     매번 처음부터 다시 돕니다(화면을 억지로 다시 계산시키지 않습니다). */
+  if(ok) celebrate();
+  recordResult(m.id, ok, reason);
   $('resultSay').textContent = say.text;
   $('resultSay').className = 'ai-say'+(say.tone?' '+say.tone:'');
   $('resultDesc').innerHTML = desc;
@@ -2267,6 +2619,7 @@ function startAutoReturn(seconds){
     /* 결과 화면이 아니면 아무것도 하지 않고 스스로 멈춥니다. setStep에서 이미 멈추지만,
        화면을 넘기는 동작은 되돌릴 수 없으니 여기서 한 번 더 확인합니다. */
     if(step!=='result'){ clearInterval(autoReturnTimer); autoReturnTimer=null; autoReturnActive=false; return; }
+    if(opOpen()) return;   // 운영자가 설정을 보는 동안에는 기다립니다
     n--;
     if(n<=0){ clearInterval(autoReturnTimer); autoReturnTimer=null; autoReturnActive=false; goSelect(); }
     else paint();
@@ -2319,8 +2672,11 @@ function cancelReady(){
   if(!readyTimer) return false;
   clearInterval(readyTimer); readyTimer=null;
   calibSamples=null;          // 기준 잡기를 멈춥니다. 이전 기준값은 그대로 남습니다.
+  hideCalibOverlay();
   showCalibNote('');
   setStep('select');          // 버튼 상태는 setStep이 되돌립니다
+  /* 취소 버튼이 사라지면서 키보드 포커스가 날아가지 않게 '준비됐어요'로 돌려줍니다. */
+  const rb=$('readyBtn'); if(rb) rb.focus({preventScroll:true});
   return true;
 }
 /* 카메라는 끄지만 얼굴 인식 모델은 남겨 두었다가, '카메라 시작'을 다시 누르면 재사용합니다. */
@@ -2340,16 +2696,202 @@ function armBackGuard(){
 }
 window.addEventListener('popstate', ()=>{
   backGuard=false;
+  if(opOpen()){ closeOp(); if(step!=='idle') armBackGuard(); return; }
   if(step==='challenge' || step==='result') backToSelect();
   else if(step==='select'){ if(!cancelReady()) goIdle(); }
   /* 선택 화면으로 돌아왔다면 setStep이 기록을 다시 한 칸 쌓아 둡니다(첫 화면에서는 쌓지 않음). */
 });
 document.addEventListener('keydown', e=>{
-  if(e.key!=='Escape' || e.isComposing) return;
+  if(e.isComposing) return;
+  /* 한글 입력 상태에서는 e.key가 'ㅒ'로 들어오므로 키 위치(e.code)로도 확인합니다. */
+  if(e.ctrlKey && e.shiftKey && !e.altKey && (e.code==='KeyO' || e.key==='O' || e.key==='o')){ e.preventDefault(); if(opOpen()) closeOp(); else openOp(); return; }
+  if(e.key!=='Escape') return;
+  if(opOpen()){ e.preventDefault(); closeOp(); return; }
   if(step==='challenge' || step==='result'){ e.preventDefault(); backToSelect(); }
   else if(step==='select' && readyTimer){ e.preventDefault(); cancelReady(); }
 });
 $('backBtn').addEventListener('click', backToSelect);
+/* '준비됐어요'를 두 번 톡톡 누르거나 Enter를 길게 누르면, 두 번째 입력이 방금 열린 준비 화면의
+   '취소'에 들어갑니다. 열린 직후 0.5초 동안의 누름은 무시합니다(Esc·뒤로 가기는 바로 됩니다). */
+$('calibCancel').addEventListener('click', ()=>{ if(performance.now()-calibOpenedAt<500) return; cancelReady(); });
+
+/* ── 기록(운영자용) ─────────────────────────────────────────────────────────────
+   미션별 도전·성공 횟수와 실패 이유, 날짜별 횟수. 이 기기 브라우저에만 저장되고, 얼굴이나
+   영상과 관련된 값은 하나도 남기지 않습니다(횟수만). 날짜는 최근 30일치만 둡니다. */
+const STATS_KEY='aiMission3.stats.v1';
+function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function emptyStats(){ return {since:todayKey(), missions:{}, days:{}}; }
+function loadStats(){
+  try{
+    const v=JSON.parse(localStorage.getItem(STATS_KEY)||'null');
+    if(v && typeof v==='object' && v.missions && typeof v.missions==='object' && v.days && typeof v.days==='object') return v;
+  }catch(e){}
+  return emptyStats();
+}
+let stats=loadStats();
+function saveStats(){ try{ localStorage.setItem(STATS_KEY, JSON.stringify(stats)); }catch(e){} }
+function recordResult(id, ok, reason){
+  try{
+    const ms=stats.missions[id] || (stats.missions[id]={tries:0, wins:0, reasons:{}});
+    ms.tries=(+ms.tries||0)+1; if(ok) ms.wins=(+ms.wins||0)+1;
+    else { ms.reasons=ms.reasons||{}; ms.reasons[reason]=(+ms.reasons[reason]||0)+1; }
+    const tk=todayKey(), day=stats.days[tk] || (stats.days[tk]={tries:0, wins:0});
+    day.tries=(+day.tries||0)+1; if(ok) day.wins=(+day.wins||0)+1;
+    const keys=Object.keys(stats.days).sort();
+    while(keys.length>30) delete stats.days[keys.shift()];
+    saveStats();
+  }catch(e){}
+  paintToday();
+}
+/* 선택 화면 제목 옆의 '오늘 기록'. 오늘 도전이 없으면 숨깁니다. */
+function paintToday(){
+  const el=$('todayCount'); if(!el) return;
+  const d=stats.days[todayKey()];
+  if(!d || !(d.tries>0)){ el.hidden=true; return; }
+  el.textContent='오늘 AI를 '+(d.wins||0)+'번 속였어요 · 도전 '+d.tries+'번';
+  el.hidden=false;
+}
+
+/* ── 운영자 설정 ─────────────────────────────────────────────────────────────────
+   전시 현장에서 코드를 고치지 않고 난이도를 맞출 수 있게 합니다. 로고를 2초 꾹 누르거나
+   Ctrl+Shift+O로 엽니다. 도전 중이거나 준비(기준 잡기) 중에는 열리지 않습니다. */
+const SENS_ROWS=[
+  ['smile','입 웃음','입만 웃기 · 울면서 웃기'],
+  ['eye','눈 웃음','입만 웃기 — 높이면 더 엄격'],
+  ['sadBrow','슬픈 눈썹','울면서 웃기'],
+  ['angerBrow','화난 눈썹','울면서 화내기'],
+  ['frown','울상 입','울면서 화내기']
+];
+const REASON_LABEL={mouth:'입꼬리가 덜 올라감', eyes:'눈까지 웃음', neutral:'둘 다 무표정', weak:'한쪽이 30% 미만',
+  collapse:'유지 전에 무너짐', timeup:'시간이 모자람', noface:'얼굴을 못 찾음', pose:'얼굴 각도·거리'};
+function reasonLabel(m, r){
+  if(r==='wonL') return (m.left ? m.left.name : '한쪽')+'이 이김';
+  if(r==='wonR') return (m.right ? m.right.name : '한쪽')+'이 이김';
+  return REASON_LABEL[r] || r;
+}
+function opOpen(){ const p=$('opPanel'); return !!p && !p.hidden; }
+function openOp(){
+  if(opOpen()) return;
+  if(!(step==='idle' || step==='result' || (step==='select' && !readyTimer))) return;
+  paintOpStats(); paintOpControls();
+  $('opPanel').hidden=false; setBackdropInert(true);
+  $('opClose').focus({preventScroll:true});
+}
+function closeOp(){
+  if(!opOpen()) return;
+  $('opPanel').hidden=true; setBackdropInert(false);
+}
+function paintOpStats(){
+  $('opStats').innerHTML=MISSIONS.map(m=>{
+    const v=stats.missions[m.id]||{tries:0,wins:0,reasons:{}};
+    let top='', topN=0;
+    for(const r in (v.reasons||{})){ if(v.reasons[r]>topN){ topN=v.reasons[r]; top=r; } }
+    const rate = v.tries ? Math.round(v.wins/v.tries*100)+'%' : '-';
+    return '<tr><td>'+m.letter+' '+m.label+'</td><td>'+(v.tries||0)+'</td><td>'+(v.wins||0)+'</td><td>'+rate+'</td><td>'+
+      (top ? reasonLabel(m, top)+' ('+topN+'번)' : '-')+'</td></tr>';
+  }).join('');
+  $('opSince').textContent=(stats.since||todayKey())+'부터';
+  const d=stats.days[todayKey()]||{tries:0,wins:0};
+  $('opToday').textContent='오늘: 도전 '+(d.tries||0)+'번 · 성공 '+(d.wins||0)+'번';
+}
+function paintOpControls(){
+  $('opSens').innerHTML=SENS_ROWS.map(([k,name,hint])=>{
+    const v=Math.round(settings.sens[k]*100);
+    return '<label class="op-sens"><span class="op-sname">'+name+'<small>'+hint+'</small></span>'+
+      '<input type="range" min="60" max="160" step="5" value="'+v+'" data-k="'+k+'" aria-label="'+name+' 감도">'+
+      '<output>'+v+'%</output></label>';
+  }).join('');
+  $('opHold').innerHTML=HOLD_CHOICES.map(x=>'<option value="'+x+'"'+(x===settings.hold?' selected':'')+'>'+x+'초</option>').join('');
+  $('opLimit').innerHTML=LIMIT_CHOICES.map(x=>'<option value="'+x+'"'+(x===settings.limit?' selected':'')+'>'+x+'초</option>').join('');
+}
+/* 유지·제한 시간이 바뀌면 화면의 안내 문구(카드의 'n초', '제한 시간 n초')도 바로 맞춥니다. */
+function refreshTimeTexts(){
+  const tn=$('timerNote'); if(tn) tn.textContent='제한 시간 '+timeLimit()+'초';
+  if(step==='select' && currentMission) renderCards();
+}
+$('opSens').addEventListener('input', e=>{
+  const t=e.target; if(!t || !t.dataset || !t.dataset.k || !(t.dataset.k in settings.sens)) return;
+  const v=clamp((+t.value||100)/100, 0.6, 1.6);
+  settings.sens[t.dataset.k]=v; saveSettings();
+  const o=t.nextElementSibling; if(o) o.textContent=Math.round(v*100)+'%';
+});
+$('opHold').addEventListener('change', e=>{ const v=+e.target.value; if(HOLD_CHOICES.indexOf(v)>=0){ settings.hold=v; saveSettings(); refreshTimeTexts(); } });
+$('opLimit').addEventListener('change', e=>{ const v=+e.target.value; if(LIMIT_CHOICES.indexOf(v)>=0){ settings.limit=v; saveSettings(); refreshTimeTexts(); } });
+$('opDefaults').addEventListener('click', ()=>{ settings=defaultSettings(); saveSettings(); paintOpControls(); refreshTimeTexts(); });
+/* 기록 지우기는 실수로 누르지 않게 두 번 눌러야 합니다(3초 안에). 확인 창은 쓰지 않습니다. */
+let clearArmedAt=0, clearArmTimer=null;
+$('opClear').addEventListener('click', ()=>{
+  const b=$('opClear'), now=performance.now();
+  clearTimeout(clearArmTimer);
+  if(!clearArmedAt || now-clearArmedAt>3000){
+    clearArmedAt=now; b.textContent='한 번 더 누르면 지워져요';
+    clearArmTimer=setTimeout(()=>{ clearArmedAt=0; b.textContent='기록 지우기'; }, 3000);
+    return;
+  }
+  clearArmedAt=0; b.textContent='기록 지우기';
+  stats=emptyStats(); saveStats(); paintOpStats(); paintToday();
+});
+$('opClose').addEventListener('click', closeOp);
+/* 로고를 2초 꾹 누르면 열립니다. 손을 떼거나 벗어나면 취소. */
+(function(){
+  const logo=document.querySelector('.logo'); if(!logo) return;
+  let t=null;
+  const cancel=()=>{ clearTimeout(t); t=null; };
+  logo.addEventListener('pointerdown', ()=>{ cancel(); t=setTimeout(()=>{ t=null; openOp(); }, 2000); });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>logo.addEventListener(ev, cancel));
+  logo.addEventListener('contextmenu', e=>e.preventDefault());
+})();
+refreshTimeTexts();
+paintToday();
+
+/* ── 성공 축하(색종이) ────────────────────────────────────────────────────────
+   결과 화면에서 3초 남짓만 떨어집니다. 얼굴 인식이 쉬는 화면이고, transform으로만 움직여
+   다른 작업을 방해하지 않습니다. 움직임 줄이기를 켠 사람에게는 띄우지 않습니다. */
+let confettiTimer=null;
+function clearConfetti(){
+  clearTimeout(confettiTimer); confettiTimer=null;
+  const box=$('confetti'); if(box && box.firstChild) box.textContent='';
+}
+function celebrate(){
+  const box=$('confetti');
+  if(!box) return;
+  try{ if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return; }catch(e){}
+  clearConfetti();
+  const colors=['#ff4f9c','#ffd166','#6ea8ff','#3ddc84','#ff8f80','#c9a7ff'];
+  const frag=document.createDocumentFragment();
+  for(let i=0;i<36;i++){
+    const p=document.createElement('i');
+    p.style.left=(Math.random()*100).toFixed(1)+'vw';
+    p.style.background=colors[i%colors.length];
+    p.style.setProperty('--x', ((Math.random()*2-1)*18).toFixed(1)+'vw');
+    p.style.setProperty('--r', ((360+Math.random()*540)*(Math.random()<0.5?-1:1)).toFixed(0)+'deg');
+    p.style.setProperty('--d', (1.6+Math.random()*1.2).toFixed(2)+'s');
+    p.style.animationDelay=(Math.random()*0.25).toFixed(2)+'s';
+    frag.appendChild(p);
+  }
+  box.appendChild(frag);
+  confettiTimer=setTimeout(clearConfetti, 3400);
+}
+
+/* ── 전체 화면(전시 운영용) ───────────────────────────────────────────────────
+   첫 화면 아래의 작은 버튼. 전체 화면을 지원하지 않는 기기(일부 휴대폰)에서는 숨깁니다. */
+(function(){
+  const b=$('fsBtn'), d=document.documentElement;
+  const req=d.requestFullscreen||d.webkitRequestFullscreen;
+  if(!b || !req) return;
+  const isFs=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
+  const label=()=>{ b.textContent = isFs() ? '전체 화면 끄기' : '전체 화면으로 보기'; };
+  b.hidden=false;
+  b.addEventListener('click', ()=>{
+    try{
+      if(isFs()){ const ex=document.exitFullscreen||document.webkitExitFullscreen; if(ex){ const p=ex.call(document); if(p&&p.catch) p.catch(()=>{}); } }
+      else { const p=req.call(d); if(p&&p.catch) p.catch(()=>{}); }
+    }catch(e){}
+  });
+  document.addEventListener('fullscreenchange', label);
+  document.addEventListener('webkitfullscreenchange', label);
+  label();
+})();
 
 /* 추론은 30fps로 제한합니다. 120Hz 화면에서 매 프레임 추론을 시도하면 배터리와 CPU만
    태우고 정확도는 나아지지 않습니다. 실제 처리 속도(fps)도 측정해 화면에 보여줍니다. */
