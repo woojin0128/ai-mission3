@@ -168,8 +168,12 @@ section.step.active{display:block;}
 #liveGauge .tug-zone.on{opacity:1;box-shadow:0 0 0 3px var(--pink-soft),0 0 12px var(--zone-edge);}
 .tug-pos{position:absolute;inset:0;transform:translateX(50%);will-change:transform;}
 .tug-marker{position:absolute;left:-3px;top:1px;bottom:1px;width:6px;border-radius:3px;background:var(--marker);transition:opacity .15s;}
-.tug-marker.weak{opacity:.3;}
-.tug-marker.hide{opacity:0;}
+/* 표시는 어떤 상태에서도 완전히 숨기지 않습니다. 무표정일 때 아예 안 보이게 했더니
+   2·3번 미션은 라운드를 시작할 때마다 게이지가 사라진 것처럼 보였습니다(시작은 늘
+   무표정이니까요). '아무것도 안 했는데 성공 직전처럼 보이는' 문제는 가운데 분홍 칸이
+   조건을 다 채울 때만 켜지는 것으로 이미 막고 있으므로, 표시는 회색으로 두면 충분합니다. */
+.tug-marker.weak{opacity:.45;}
+.tug-marker.idle{background:var(--muted);opacity:.5;}
 .ai-say{display:inline-block;font-size:12.5px;font-weight:800;padding:5px 12px;border-radius:20px;background:var(--say-bg);color:var(--say-ink);}
 .ai-say.sure{background:var(--say-sure-bg);color:var(--say-sure-ink);}
 .ai-say.flat{background:var(--chip-neutral);color:var(--muted);}
@@ -1681,7 +1685,10 @@ $('camBtn').addEventListener('click', async ()=>{
        영상 디코딩·캔버스 그리기·얼굴 인식 입력 준비가 모두 화소 수에 비례해 무거워져서
        사양이 낮은 노트북에서 끊김이 생깁니다. 측정하지 않은 이득보다 실제로 겪는 끊김이
        더 중요합니다. */
-    {video:{facingMode:'user', width:{ideal:640}, height:{ideal:480}, frameRate:{ideal:30,max:30}}, audio:false},
+    /* 480x360으로 요청합니다. 화면에 그리는 캔버스가 어차피 480픽셀 폭이라 보이는 화질은
+       같고, 매 프레임의 영상 디코딩과 인식 입력 준비가 화소 수에 비례해 약 44% 가벼워집니다.
+       기준값을 같은 해상도에서 잡으므로 치우침은 서로 상쇄되고, 얼굴 폭 교차 검증도 그대로입니다. */
+    {video:{facingMode:'user', width:{ideal:480}, height:{ideal:360}, frameRate:{ideal:30,max:30}}, audio:false},
     {video:{facingMode:'user'}, audio:false},
     {video:true, audio:false}
   ];
@@ -1901,7 +1908,7 @@ function paintGauge(r, st, durMs, snap){
        한쪽만 30%를 넘고 칸 안에 있으면 흐리게, 칸 밖(한쪽이 이기는 중)이면 진하게 그립니다.
        분홍 칸은 조건을 다 채웠을 때만 밝게 켜집니다. */
     const none=!ok.L && !ok.R, all=ok.L&&ok.R&&ok.gap;
-    putClass(r, 'mk', r.marker, 'tug-marker'+(none?' hide':((ok.gap && !all)?' weak':'')));
+    putClass(r, 'mk', r.marker, 'tug-marker'+(none?' idle':((ok.gap && !all)?' weak':'')));
     putClass(r, 'zn', r.zone, 'tug-zone'+(all?' on':''));
   }
   /* 무표정이면 저절로 맞는 조건(줄다리기의 '차이 10%p 이내', 입만 웃기의 '눈 웃음 20% 이하')은
@@ -2258,7 +2265,12 @@ function setGauge(el, v, durMs, snap, mode){
   if(!el) return;
   const x=clamp(isFinite(v)?v:0,0,1);
   const t = mode==='move' ? 'translateX('+(x*100).toFixed(2)+'%)' : 'scaleX('+x.toFixed(4)+')';
-  const d=(snap?0:Math.round(durMs))+'ms';
+  /* 이동 시간은 20ms 단위로 끊어서 씁니다. 측정 간격은 매 프레임 몇 ms씩 흔들리는데,
+     그 값을 그대로 반영하면 transition-duration을 거의 매 프레임 다시 쓰게 됩니다.
+     진행 중인 전환의 지속 시간을 바꾸면 브라우저가 그 전환의 타이밍을 다시 잡기 때문에,
+     게이지가 매번 미세하게 멈칫하며 떨립니다 — 부드럽게 만들려고 넣은 코드가 오히려
+     끊김을 만들고 있었습니다. 실제로 달라졌을 때만 바꿉니다. */
+  const d=(snap?0:Math.max(20, Math.round(durMs/20)*20))+'ms';
   if(el.dataset.d!==d){ el.style.transitionProperty='transform';
     el.style.transitionTimingFunction='linear'; el.style.transitionDuration=d; el.dataset.d=d; }
   if(el.dataset.t!==t){ el.style.transform=t; el.dataset.t=t; }
@@ -2898,7 +2910,12 @@ function celebrate(){
 /* 목표는 30fps이지만, 기기가 그 속도를 못 내면 간격을 스스로 늘립니다.
    처리 시간보다 빠르게 요청을 밀어 넣으면 작업이 쌓여 화면 전체가 끊기고, 정작 보이는
    영상은 오히려 더 느려집니다. 한 번 처리에 걸린 시간을 재서 그보다 느긋하게 요청합니다. */
-const TARGET_FPS=30, MIN_SEND_GAP=1/TARGET_FPS, MAX_SEND_GAP=1/12;
+/* 추론 목표를 초당 30회에서 22회로 낮췄습니다. 얼굴 인식 한 번은 메인 스레드를 수십 ms
+   통째로 막고, 자바스크립트는 한 줄로 돌기 때문에 그 사이에는 게이지도 영상도 움직이지
+   못합니다. 초당 30번 막는 것보다 22번 막는 쪽이 눈에 보이는 부드러움에서 낫습니다.
+   판정은 시간 기준(디바운스·유지 시간)이라 횟수가 줄어도 그대로 동작하고, 반응만
+   약 15ms 늦어집니다. */
+const TARGET_FPS=22, MIN_SEND_GAP=1/TARGET_FPS, MAX_SEND_GAP=1/12;
 let lastSendT=0, spentEma=0, sendGap=MIN_SEND_GAP;
 /* 얼굴 인식은 실제로 필요한 화면에서만 돌립니다.
    예전에는 카메라를 켠 뒤로는 화면과 무관하게 계속 추론했습니다. 결과 화면에서 설명을
